@@ -1,0 +1,64 @@
+# Supply Chain Vertical Configuration
+
+name: supply-chain
+version: 1.0.0
+description: Perishable food supply chain template
+
+# ML Models to deploy
+models:
+  - name: demand-forecasting
+    path: templates/supply-chain/models/demand_forecasting
+    type: sklearn
+    endpoints:
+      - /predict/demand
+    
+  - name: inventory-optimization
+    path: templates/supply-chain/models/inventory_optimization
+    type: sklearn
+    endpoints:
+      - /predict/inventory
+  
+  - name: supplier-reliability
+    path: templates/supply-chain/models/supplier_reliability
+    type: sklearn
+    endpoints:
+      - /predict/supplier
+
+# Avro Schemas
+schemas:
+  directory: templates/supply-chain/schemas
+  subjects:
+    - order-event
+    - supplier-event
+    - product-created
+    - quality-alert
+
+# Flink Jobs
+flink_jobs:
+  - name: product-recommender
+    path: templates/supply-chain/flink-jobs/recommender
+    parallelism: 2
+
+# Agents
+agents:
+  - name: product-generator
+    path: templates/supply-chain/agents/product-generator
+    port: 8003
+  
+  - name: stream-analysis
+    path: templates/supply-chain/agents/stream-analysis
+    replicas: 1
+
+# Sample Data
+sample_data:
+  enabled: true
+  path: templates/supply-chain/sample-data
+
+# Business KPIs
+kpis:
+  - name: forecast_accuracy
+    description: Demand forecast accuracy
+  - name: inventory_turnover
+    description: Inventory turnover rate
+  - name: supplier_reliability
+    description: Supplier on-time delivery %

@@ -1,0 +1,94 @@
+{
+  "type": "record",
+  "name": "OrderEvent",
+  "namespace": "com.platform.events",
+  "doc": "Event representing order lifecycle in the supply chain",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": "string",
+      "doc": "Unique identifier for this event"
+    },
+    {
+      "name": "event_type",
+      "type": {
+        "type": "enum",
+        "name": "OrderEventType",
+        "symbols": ["PLACED", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"]
+      },
+      "doc": "Type of order event"
+    },
+    {
+      "name": "order_id",
+      "type": "string",
+      "doc": "Unique order identifier"
+    },
+    {
+      "name": "supplier_id",
+      "type": "string",
+      "doc": "Supplier fulfilling the order"
+    },
+    {
+      "name": "customer_id",
+      "type": "string",
+      "doc": "Customer placing the order"
+    },
+    {
+      "name": "order_total",
+      "type": "double",
+      "doc": "Total order amount"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "items",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "OrderItem",
+          "fields": [
+            {"name": "product_id", "type": "string"},
+            {"name": "quantity", "type": "int"},
+            {"name": "unit_price", "type": "double"}
+          ]
+        }
+      },
+      "doc": "Items in the order"
+    },
+    {
+      "name": "shipping_address",
+      "type": {
+        "type": "record",
+        "name": "Address",
+        "fields": [
+          {"name": "street", "type": "string"},
+          {"name": "city", "type": "string"},
+          {"name": "state", "type": ["null", "string"], "default": null},
+          {"name": "postal_code", "type": "string"},
+          {"name": "country", "type": "string"}
+        ]
+      },
+      "doc": "Shipping address"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in milliseconds since epoch"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata"
+    }
+  ]
+}

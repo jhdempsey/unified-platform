@@ -1,0 +1,92 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-consumer
+  namespace: default
+  labels:
+    app: ml-consumer
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 9090
+    protocol: TCP
+    name: http
+  selector:
+    app: ml-consumer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-consumer
+  namespace: default
+  labels:
+    app: ml-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ml-consumer
+  template:
+    metadata:
+      labels:
+        app: ml-consumer
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      initContainers:
+      - name: wait-for-kafka
+        image: busybox:1.35
+        command: ['sh', '-c']
+        args:
+        - |
+          echo "Waiting for Kafka to be ready..."
+          until nc -z kafka 9092; do
+            echo "Kafka not ready, waiting..."
+            sleep 2
+          done
+          echo "Kafka is ready!"
+      containers:
+      - name: ml-consumer
+        image: us-central1-docker.pkg.dev/gen-lang-client-0282248851/ai-platform-repo/ml-consumer:latest
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka:9092"
+        - name: METRICS_PORT
+          value: "9090"
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        ports:
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9090
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"]

@@ -1,0 +1,90 @@
+{
+  "type": "record",
+  "name": "ProductCreatedEvent",
+  "namespace": "com.platform.events",
+  "doc": "Event emitted when a new data product is created",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": "string",
+      "doc": "Unique identifier for this event"
+    },
+    {
+      "name": "product_id",
+      "type": "string",
+      "doc": "Unique data product identifier"
+    },
+    {
+      "name": "product_name",
+      "type": "string",
+      "doc": "Name of the data product"
+    },
+    {
+      "name": "product_type",
+      "type": {
+        "type": "enum",
+        "name": "ProductType",
+        "symbols": ["DATASET", "STREAM", "API", "REPORT", "ML_MODEL"]
+      },
+      "doc": "Type of data product"
+    },
+    {
+      "name": "owner",
+      "type": "string",
+      "doc": "Product owner/team"
+    },
+    {
+      "name": "description",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Product description"
+    },
+    {
+      "name": "schema_version",
+      "type": "string",
+      "default": "1.0.0",
+      "doc": "Schema version (semantic versioning)"
+    },
+    {
+      "name": "tags",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "Searchable tags"
+    },
+    {
+      "name": "quality_score",
+      "type": ["null", "double"],
+      "default": null,
+      "doc": "Initial quality score (0-100)"
+    },
+    {
+      "name": "kafka_topic",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Associated Kafka topic (if stream product)"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in milliseconds since epoch"
+    },
+    {
+      "name": "created_by",
+      "type": "string",
+      "doc": "User who created the product"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata"
+    }
+  ]
+}

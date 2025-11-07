@@ -1,0 +1,364 @@
+
+# ==============================================================================
+# Unified Platform - Local Development
+# Multi-Vertical Event-Driven ML/AI Platform
+# ==============================================================================
+
+x-common-environment: &common-env
+  VERTICAL: ${VERTICAL:-supply-chain}
+  ENVIRONMENT: ${ENVIRONMENT:-dev}
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  SCHEMA_REGISTRY_URL: http://schema-registry:8081
+  MLFLOW_TRACKING_URI: http://mlflow:5001
+  DATABASE_URL: postgresql://platform:platform_dev@postgres:5432/platform
+  REDIS_URL: redis://redis:6379
+
+services:
+  # ============================================================================
+  # EVENT STREAMING LAYER
+  # ============================================================================
+  
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: platform-kafka
+    hostname: kafka
+    ports:
+      - "9092:9092"
+      - "19092:19092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.5.0
+    container_name: platform-schema-registry
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.1
+    container_name: platform-kafka-ui
+    depends_on:
+      - kafka
+      - schema-registry
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+      DYNAMIC_CONFIG_ENABLED: 'true'
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # STREAM PROCESSING LAYER (Flink)
+  # ============================================================================
+  
+  flink-jobmanager:
+    build:
+      context: ./core/infrastructure/docker/flink
+      dockerfile: Dockerfile
+    image: flink-with-kafka:1.18
+    container_name: platform-flink-jobmanager
+    ports:
+      - "8085:8081"
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        state.backend: filesystem
+        state.checkpoints.dir: file:///tmp/flink-checkpoints
+        state.savepoints.dir: file:///tmp/flink-savepoints
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/overview || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - flink_data:/tmp/flink-checkpoints
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  flink-taskmanager:
+    image: flink-with-kafka:1.18
+    container_name: platform-flink-taskmanager
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+    volumes:
+      - flink_data:/tmp/flink-checkpoints
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # CORE AGENTS (Universal)
+  # ============================================================================
+  
+  discovery-agent:
+    build:
+      context: ./core/agents
+      dockerfile: discovery/Dockerfile
+    container_name: platform-discovery-agent
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    ports:
+      - "8004:8004"
+    environment:
+      <<: *common-env
+      PORT: 8004
+    volumes:
+      - ./core/shared:/app/shared:ro 
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # CORE SERVICES (Universal)
+  # ============================================================================
+  
+  postgres:
+    image: postgres:16-alpine
+    container_name: platform-postgres
+    environment:
+      POSTGRES_USER: platform
+      POSTGRES_PASSWORD: platform_dev
+      POSTGRES_DB: platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  mlflow:
+    build:
+      context: ./core/services/mlflow
+      dockerfile: Dockerfile
+    container_name: platform-mlflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5001:5000"
+    environment:
+      MLFLOW_BACKEND_STORE_URI: postgresql://platform:platform_dev@postgres:5432/platform
+      MLFLOW_DEFAULT_ARTIFACT_ROOT: /mlflow/artifacts
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: platform-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis_data:/data
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  ai-gateway:
+    build:
+      context: ./core/services/ai-gateway
+      dockerfile: Dockerfile
+    container_name: platform-ai-gateway
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8002:8002"
+    environment:
+      <<: *common-env
+      REDIS_URL: redis://redis:6379
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  model-inference:
+    build:
+      context: ./core/services/model-inference
+      dockerfile: Dockerfile
+    container_name: platform-model-inference
+    depends_on:
+      - mlflow
+    ports:
+      - "8001:8001"
+    environment:
+      <<: *common-env
+    volumes:
+      - model_storage:/app/models
+      - ./templates/${VERTICAL:-supply-chain}/models:/app/vertical-models:ro
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  rag-service:
+    build:
+      context: ./core/services/rag-service
+      dockerfile: Dockerfile
+    container_name: platform-rag-service
+    depends_on:
+      - postgres
+    ports:
+      - "8005:8005"
+    environment:
+      <<: *common-env
+      PINECONE_API_KEY: ${PINECONE_API_KEY:-}
+      PINECONE_ENVIRONMENT: ${PINECONE_ENVIRONMENT:-}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME:-supply-chain-docs-dev}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./core/services/dashboard
+      dockerfile: Dockerfile
+    container_name: platform-dashboard
+    depends_on:
+      - mlflow
+      - kafka
+    ports:
+      - "8501:8501"
+    environment:
+      <<: *common-env
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # OBSERVABILITY LAYER
+  # ============================================================================
+  
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: platform-prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./core/infrastructure/docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: platform-grafana
+    ports:
+      - "3002:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./core/infrastructure/docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./core/infrastructure/docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.51
+    container_name: platform-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - platform-network
+    restart: unless-stopped
+
+# ==============================================================================
+# NETWORKS & VOLUMES
+# ==============================================================================
+
+networks:
+  platform-network:
+    driver: bridge
+
+volumes:
+  kafka_data:
+  postgres_data:
+  redis_data:
+  mlflow_artifacts:
+  model_storage:
+  flink_data:
+  prometheus_data:
+  grafana_data:

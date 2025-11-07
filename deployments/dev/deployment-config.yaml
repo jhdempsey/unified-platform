@@ -1,0 +1,41 @@
+# Development Environment Configuration
+
+environment: dev
+vertical: supply-chain
+
+# GCP Project
+gcp:
+  project_id: ${GCP_PROJECT_ID}
+  region: us-central1
+  zone: us-central1-a
+
+# GKE Configuration
+gke:
+  cluster_name: unified-platform-dev
+  node_pools:
+    - name: default-pool
+      machine_type: e2-standard-4
+      node_count: 2
+    - name: ml-pool
+      machine_type: n1-standard-4
+      node_count: 1
+
+# Cloud SQL
+cloud_sql:
+  tier: db-f1-micro
+  database: platform_dev
+
+# Cloud Memorystore (Redis)
+redis:
+  tier: BASIC
+  memory_size_gb: 1
+
+# Pinecone
+pinecone:
+  index_name: supply-chain-docs-dev
+
+# Feature Flags
+features:
+  enable_sample_data: true
+  enable_monitoring: true
+  enable_blue_green: false

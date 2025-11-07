@@ -1,0 +1,147 @@
+{
+  "type": "record",
+  "name": "SupplierDeliveryPerformance",
+  "namespace": "com.platform.products.supply_chain",
+  "doc": "Supplier delivery performance metrics including delivery times, on-time rates, and delay analysis",
+  "fields": [
+    {
+      "name": "delivery_id",
+      "type": "string",
+      "doc": "Unique identifier for the delivery record"
+    },
+    {
+      "name": "supplier_id",
+      "type": "string",
+      "doc": "Unique identifier for the supplier"
+    },
+    {
+      "name": "supplier_name",
+      "type": "string",
+      "doc": "Name of the supplier"
+    },
+    {
+      "name": "purchase_order_id",
+      "type": "string",
+      "doc": "Purchase order identifier"
+    },
+    {
+      "name": "order_date",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Date when order was placed"
+    },
+    {
+      "name": "promised_delivery_date",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Supplier promised delivery date"
+    },
+    {
+      "name": "actual_delivery_date",
+      "type": [
+        "null",
+        "long"
+      ],
+      "logicalType": "timestamp-millis",
+      "default": null,
+      "doc": "Actual delivery date (null if not yet delivered)"
+    },
+    {
+      "name": "delivery_status",
+      "type": {
+        "type": "enum",
+        "name": "DeliveryStatus",
+        "symbols": [
+          "PENDING",
+          "IN_TRANSIT",
+          "DELIVERED",
+          "DELAYED",
+          "CANCELLED"
+        ]
+      },
+      "doc": "Current status of the delivery"
+    },
+    {
+      "name": "is_on_time",
+      "type": [
+        "null",
+        "boolean"
+      ],
+      "default": null,
+      "doc": "Whether delivery was on time (null if not yet delivered)"
+    },
+    {
+      "name": "delay_days",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null,
+      "doc": "Number of days delayed (negative if early, null if not delivered)"
+    },
+    {
+      "name": "order_value",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 10,
+        "scale": 2
+      },
+      "doc": "Total value of the order"
+    },
+    {
+      "name": "product_category",
+      "type": "string",
+      "doc": "Category of products in the order"
+    },
+    {
+      "name": "shipping_method",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null,
+      "doc": "Method of shipping used"
+    },
+    {
+      "name": "delivery_location",
+      "type": "string",
+      "doc": "Delivery destination location"
+    },
+    {
+      "name": "quantity_ordered",
+      "type": "int",
+      "doc": "Total quantity of items ordered"
+    },
+    {
+      "name": "quantity_delivered",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null,
+      "doc": "Total quantity actually delivered"
+    },
+    {
+      "name": "quality_issues",
+      "type": [
+        "null",
+        "boolean"
+      ],
+      "default": null,
+      "doc": "Whether there were quality issues with the delivery"
+    },
+    {
+      "name": "created_at",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Timestamp when record was created"
+    },
+    {
+      "name": "updated_at",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Timestamp when record was last updated"
+    }
+  ]
+}

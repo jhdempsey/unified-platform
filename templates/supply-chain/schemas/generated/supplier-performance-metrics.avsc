@@ -1,0 +1,159 @@
+{
+  "type": "record",
+  "name": "SupplierPerformanceMetrics",
+  "namespace": "com.platform.products.procurement",
+  "doc": "Supplier performance metrics including delivery, quality, and compliance scores",
+  "fields": [
+    {
+      "name": "supplier_id",
+      "type": "string",
+      "doc": "Unique identifier for the supplier"
+    },
+    {
+      "name": "supplier_name",
+      "type": "string",
+      "doc": "Legal name of the supplier"
+    },
+    {
+      "name": "measurement_period_start",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Start of measurement period"
+    },
+    {
+      "name": "measurement_period_end",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "End of measurement period"
+    },
+    {
+      "name": "total_orders",
+      "type": "int",
+      "doc": "Total number of orders in the period"
+    },
+    {
+      "name": "on_time_deliveries",
+      "type": "int",
+      "doc": "Number of orders delivered on time"
+    },
+    {
+      "name": "on_time_delivery_rate",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 5,
+        "scale": 4
+      },
+      "doc": "Percentage of on-time deliveries (0.0000-1.0000)"
+    },
+    {
+      "name": "average_delivery_delay_days",
+      "type": [
+        "null",
+        {
+          "type": "bytes",
+          "logicalType": "decimal",
+          "precision": 6,
+          "scale": 2
+        }
+      ],
+      "default": null,
+      "doc": "Average delay in days for late deliveries"
+    },
+    {
+      "name": "quality_score",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 5,
+        "scale": 2
+      },
+      "doc": "Overall quality score (0.00-100.00)"
+    },
+    {
+      "name": "defect_rate",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 5,
+        "scale": 4
+      },
+      "doc": "Percentage of defective items (0.0000-1.0000)"
+    },
+    {
+      "name": "compliance_score",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 5,
+        "scale": 2
+      },
+      "doc": "Compliance score (0.00-100.00)"
+    },
+    {
+      "name": "certifications_valid",
+      "type": "boolean",
+      "doc": "Whether all required certifications are valid"
+    },
+    {
+      "name": "audit_status",
+      "type": {
+        "type": "enum",
+        "name": "AuditStatus",
+        "symbols": [
+          "PASSED",
+          "FAILED",
+          "PENDING",
+          "NOT_REQUIRED"
+        ]
+      },
+      "doc": "Latest audit status"
+    },
+    {
+      "name": "total_spend_amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 15,
+        "scale": 2
+      },
+      "doc": "Total spend amount in the period"
+    },
+    {
+      "name": "currency_code",
+      "type": "string",
+      "doc": "ISO 4217 currency code"
+    },
+    {
+      "name": "category",
+      "type": "string",
+      "doc": "Supplier category or commodity type"
+    },
+    {
+      "name": "risk_level",
+      "type": {
+        "type": "enum",
+        "name": "RiskLevel",
+        "symbols": [
+          "LOW",
+          "MEDIUM",
+          "HIGH",
+          "CRITICAL"
+        ]
+      },
+      "doc": "Assessed risk level"
+    },
+    {
+      "name": "created_at",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Record creation timestamp"
+    },
+    {
+      "name": "updated_at",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Record last update timestamp"
+    }
+  ]
+}

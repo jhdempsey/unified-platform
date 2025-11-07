@@ -1,0 +1,95 @@
+{
+  "type": "record",
+  "name": "QualityAlertEvent",
+  "namespace": "com.platform.events",
+  "doc": "Event emitted when data quality issues are detected",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": "string",
+      "doc": "Unique identifier for this event"
+    },
+    {
+      "name": "alert_type",
+      "type": {
+        "type": "enum",
+        "name": "AlertType",
+        "symbols": ["ANOMALY", "MISSING_DATA", "SCHEMA_VIOLATION", "THRESHOLD_BREACH", "DATA_DRIFT"]
+      },
+      "doc": "Type of quality alert"
+    },
+    {
+      "name": "severity",
+      "type": {
+        "type": "enum",
+        "name": "Severity",
+        "symbols": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+      },
+      "doc": "Alert severity level"
+    },
+    {
+      "name": "product_id",
+      "type": "string",
+      "doc": "Affected data product ID"
+    },
+    {
+      "name": "topic_name",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Kafka topic where issue was detected"
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "doc": "Human-readable description of the issue"
+    },
+    {
+      "name": "ai_analysis",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "AI-generated analysis and recommendations"
+    },
+    {
+      "name": "affected_records",
+      "type": "int",
+      "default": 0,
+      "doc": "Number of records affected"
+    },
+    {
+      "name": "sample_data",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Sample of problematic data (JSON string)"
+    },
+    {
+      "name": "metrics",
+      "type": {
+        "type": "map",
+        "values": "double"
+      },
+      "default": {},
+      "doc": "Quality metrics (e.g., completeness, accuracy)"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "When the alert was generated"
+    },
+    {
+      "name": "detection_method",
+      "type": "string",
+      "default": "AI_AGENT",
+      "doc": "How the issue was detected"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "type": "record",
+  "name": "SupplierEvent",
+  "namespace": "com.platform.events",
+  "doc": "Event representing changes to supplier data in the iTradeNetwork platform",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": "string",
+      "doc": "Unique identifier for this event"
+    },
+    {
+      "name": "event_type",
+      "type": {
+        "type": "enum",
+        "name": "SupplierEventType",
+        "symbols": ["CREATED", "UPDATED", "DELETED", "VERIFIED", "SUSPENDED"]
+      },
+      "doc": "Type of supplier event"
+    },
+    {
+      "name": "supplier_id",
+      "type": "string",
+      "doc": "Unique supplier identifier"
+    },
+    {
+      "name": "supplier_name",
+      "type": "string",
+      "doc": "Name of the supplier"
+    },
+    {
+      "name": "supplier_code",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Optional supplier code"
+    },
+    {
+      "name": "country",
+      "type": "string",
+      "doc": "Supplier country"
+    },
+    {
+      "name": "certification_status",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Certification status (e.g., FDA, HACCP, ISO)"
+    },
+    {
+      "name": "contact_email",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Primary contact email"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in milliseconds since epoch"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata key-value pairs"
+    }
+  ]
+}

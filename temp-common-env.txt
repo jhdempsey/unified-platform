@@ -1,0 +1,16 @@
+x-common-environment: &common-env
+  VERTICAL: ${VERTICAL:-supply-chain}
+  ENVIRONMENT: ${ENVIRONMENT:-dev}
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  SCHEMA_REGISTRY_URL: http://schema-registry:8081
+  MLFLOW_TRACKING_URI: http://mlflow:5001
+  DATABASE_URL: postgresql://platform:platform_dev@postgres:5432/platform
+  REDIS_URL: redis://redis:6379
+  
+  # API Keys
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  PINECONE_API_KEY: ${PINECONE_API_KEY}
+  PINECONE_CLOUD: ${PINECONE_CLOUD:-aws}
+  PINECONE_REGION: ${PINECONE_REGION:-us-east-1}
+

@@ -1,0 +1,156 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+    autopilot.gke.io/resource-adjustment: '{"input":{"initContainers":[{"name":"cleanup"}],"containers":[{"limits":{"cpu":"1","memory":"2Gi"},"requests":{"cpu":"500m","memory":"1Gi"},"name":"kafka"}]},"output":{"initContainers":[{"limits":{"ephemeral-storage":"1Gi"},"requests":{"cpu":"500m","ephemeral-storage":"1Gi","memory":"1Gi"},"name":"cleanup"}],"containers":[{"limits":{"cpu":"1","ephemeral-storage":"1Gi","memory":"2Gi"},"requests":{"cpu":"500m","ephemeral-storage":"1Gi","memory":"1Gi"},"name":"kafka"}]},"computeClassAtAdmission":"Default","modified":true}'
+    autopilot.gke.io/warden-version: 33.33.19-gke.1
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"StatefulSet","metadata":{"annotations":{},"name":"kafka","namespace":"default"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"kafka"}},"serviceName":"kafka","template":{"metadata":{"labels":{"app":"kafka"}},"spec":{"containers":[{"env":[{"name":"KAFKA_NODE_ID","value":"1"},{"name":"KAFKA_PROCESS_ROLES","value":"broker,controller"},{"name":"KAFKA_LISTENERS","value":"PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"},{"name":"KAFKA_ADVERTISED_LISTENERS","value":"PLAINTEXT://kafka-0.kafka.default.svc.cluster.local:9092"},{"name":"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP","value":"CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"},{"name":"KAFKA_CONTROLLER_LISTENER_NAMES","value":"CONTROLLER"},{"name":"KAFKA_CONTROLLER_QUORUM_VOTERS","value":"1@kafka-0.kafka.default.svc.cluster.local:9093"},{"name":"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR","value":"1"},{"name":"KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR","value":"1"},{"name":"KAFKA_TRANSACTION_STATE_LOG_MIN_ISR","value":"1"},{"name":"KAFKA_LOG_DIRS","value":"/var/lib/kafka/data"},{"name":"CLUSTER_ID","value":"MkU3OEVBNTcwNTJENDM2Qk"}],"image":"confluentinc/cp-kafka:7.5.0","name":"kafka","ports":[{"containerPort":9092,"name":"plaintext"},{"containerPort":9093,"name":"controller"}],"resources":{"limits":{"cpu":"1000m","memory":"2Gi"},"requests":{"cpu":"500m","memory":"1Gi"}},"volumeMounts":[{"mountPath":"/var/lib/kafka/data","name":"kafka-data"}]}],"initContainers":[{"command":["sh","-c","rm -rf /var/lib/kafka/data/lost+found"],"image":"busybox:1.35","name":"cleanup","securityContext":{"runAsNonRoot":true,"runAsUser":1000},"volumeMounts":[{"mountPath":"/var/lib/kafka/data","name":"kafka-data"}]}],"securityContext":{"fsGroup":1000,"runAsNonRoot":true,"runAsUser":1000}}},"volumeClaimTemplates":[{"metadata":{"name":"kafka-data"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"10Gi"}},"storageClassName":"standard-rwo"}}]}}
+  creationTimestamp: "2025-10-18T15:31:31Z"
+  generation: 1
+  name: kafka
+  namespace: default
+  resourceVersion: "1761114974604031018"
+  uid: 40a63390-6bbe-4a00-8e64-f16d3aadd7c2
+spec:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: kafka
+  serviceName: kafka
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: kafka
+    spec:
+      containers:
+      - env:
+        - name: KAFKA_NODE_ID
+          value: "1"
+        - name: KAFKA_PROCESS_ROLES
+          value: broker,controller
+        - name: KAFKA_LISTENERS
+          value: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: PLAINTEXT://kafka-0.kafka.default.svc.cluster.local:9092
+        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+          value: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+        - name: KAFKA_CONTROLLER_LISTENER_NAMES
+          value: CONTROLLER
+        - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+          value: 1@kafka-0.kafka.default.svc.cluster.local:9093
+        - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+          value: "1"
+        - name: KAFKA_LOG_DIRS
+          value: /var/lib/kafka/data
+        - name: CLUSTER_ID
+          value: MkU3OEVBNTcwNTJENDM2Qk
+        image: confluentinc/cp-kafka:7.5.0
+        imagePullPolicy: IfNotPresent
+        name: kafka
+        ports:
+        - containerPort: 9092
+          name: plaintext
+          protocol: TCP
+        - containerPort: 9093
+          name: controller
+          protocol: TCP
+        resources:
+          limits:
+            cpu: "1"
+            ephemeral-storage: 1Gi
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            ephemeral-storage: 1Gi
+            memory: 1Gi
+        securityContext:
+          capabilities:
+            drop:
+            - NET_RAW
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/kafka/data
+          name: kafka-data
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - command:
+        - sh
+        - -c
+        - rm -rf /var/lib/kafka/data/lost+found
+        image: busybox:1.35
+        imagePullPolicy: IfNotPresent
+        name: cleanup
+        resources:
+          limits:
+            ephemeral-storage: 1Gi
+          requests:
+            cpu: 500m
+            ephemeral-storage: 1Gi
+            memory: 1Gi
+        securityContext:
+          capabilities:
+            drop:
+            - NET_RAW
+          runAsNonRoot: true
+          runAsUser: 1000
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/kafka/data
+          name: kafka-data
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      tolerations:
+      - effect: NoSchedule
+        key: kubernetes.io/arch
+        operator: Equal
+        value: amd64
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      creationTimestamp: null
+      name: kafka-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+      storageClassName: standard-rwo
+      volumeMode: Filesystem
+    status:
+      phase: Pending
+status:
+  availableReplicas: 1
+  collisionCount: 0
+  currentReplicas: 1
+  currentRevision: kafka-68d78d98bf
+  observedGeneration: 1
+  readyReplicas: 1
+  replicas: 1
+  updateRevision: kafka-68d78d98bf
+  updatedReplicas: 1

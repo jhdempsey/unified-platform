@@ -1,0 +1,162 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    autopilot.gke.io/resource-adjustment: '{"input":{"initContainers":[{"name":"wait-for-kafka"}],"containers":[{"limits":{"cpu":"500m","memory":"1Gi"},"requests":{"cpu":"250m","memory":"768Mi"},"name":"schema-registry"}]},"output":{"initContainers":[{"limits":{"ephemeral-storage":"1Gi"},"requests":{"cpu":"250m","ephemeral-storage":"1Gi","memory":"768Mi"},"name":"wait-for-kafka"}],"containers":[{"limits":{"cpu":"500m","ephemeral-storage":"1Gi","memory":"1Gi"},"requests":{"cpu":"250m","ephemeral-storage":"1Gi","memory":"768Mi"},"name":"schema-registry"}]},"computeClassAtAdmission":"Default","modified":true}'
+    autopilot.gke.io/warden-version: 33.33.19-gke.1
+    deployment.kubernetes.io/revision: "4"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"name":"schema-registry","namespace":"default"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"schema-registry"}},"template":{"metadata":{"labels":{"app":"schema-registry"}},"spec":{"containers":[{"args":["schema-registry-start /etc/schema-registry-custom/schema-registry.properties\n"],"command":["/bin/bash","-c"],"env":[{"name":"SCHEMA_REGISTRY_HEAP_OPTS","value":"-Xms512M -Xmx512M"}],"image":"confluentinc/cp-schema-registry:7.5.0","livenessProbe":{"failureThreshold":3,"httpGet":{"path":"/subjects","port":8081},"initialDelaySeconds":60,"periodSeconds":30},"name":"schema-registry","ports":[{"containerPort":8081}],"readinessProbe":{"failureThreshold":3,"httpGet":{"path":"/subjects","port":8081},"initialDelaySeconds":60,"periodSeconds":10},"resources":{"limits":{"cpu":"500m","memory":"1Gi"},"requests":{"cpu":"250m","memory":"768Mi"}},"startupProbe":{"failureThreshold":12,"httpGet":{"path":"/subjects","port":8081},"initialDelaySeconds":30,"periodSeconds":10},"volumeMounts":[{"mountPath":"/etc/schema-registry-custom","name":"config"}]}],"initContainers":[{"args":["echo \"Waiting for Kafka port to be open...\"\nuntil nc -z kafka 9092; do \n  echo \"Kafka not ready, waiting...\"\n  sleep 2\ndone\necho \"Port 9092 is open. Waiting 45s for Kafka broker to fully initialize...\"\nsleep 45\necho \"Kafka should be ready now\"\n"],"command":["sh","-c"],"image":"busybox:1.35","name":"wait-for-kafka"}],"volumes":[{"configMap":{"name":"schema-registry-config"},"name":"config"}]}}}}
+  creationTimestamp: "2025-10-18T16:27:13Z"
+  generation: 5
+  name: schema-registry
+  namespace: default
+  resourceVersion: "1761115193270687006"
+  uid: ba431dbb-2e55-4d8d-8c03-3385fdd2c68e
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: schema-registry
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: schema-registry
+    spec:
+      containers:
+      - args:
+        - |
+          schema-registry-start /etc/schema-registry-custom/schema-registry.properties
+        command:
+        - /bin/bash
+        - -c
+        env:
+        - name: SCHEMA_REGISTRY_HEAP_OPTS
+          value: -Xms512M -Xmx512M
+        - name: SCHEMA_REGISTRY_DEBUG
+          value: "true"
+        - name: SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL
+          value: DEBUG
+        image: confluentinc/cp-schema-registry:7.5.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /subjects
+            port: 8081
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: schema-registry
+        ports:
+        - containerPort: 8081
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /subjects
+            port: 8081
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: 500m
+            ephemeral-storage: 1Gi
+            memory: 1Gi
+          requests:
+            cpu: 250m
+            ephemeral-storage: 1Gi
+            memory: 768Mi
+        securityContext:
+          capabilities:
+            drop:
+            - NET_RAW
+        startupProbe:
+          failureThreshold: 12
+          httpGet:
+            path: /subjects
+            port: 8081
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/schema-registry-custom
+          name: config
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - args:
+        - "echo \"Waiting for Kafka port to be open...\"\nuntil nc -z kafka 9092;
+          do \n  echo \"Kafka not ready, waiting...\"\n  sleep 2\ndone\necho \"Port
+          9092 is open. Waiting 45s for Kafka broker to fully initialize...\"\nsleep
+          45\necho \"Kafka should be ready now\"\n"
+        command:
+        - sh
+        - -c
+        image: busybox:1.35
+        imagePullPolicy: IfNotPresent
+        name: wait-for-kafka
+        resources:
+          limits:
+            ephemeral-storage: 1Gi
+          requests:
+            cpu: 250m
+            ephemeral-storage: 1Gi
+            memory: 768Mi
+        securityContext:
+          capabilities:
+            drop:
+            - NET_RAW
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      tolerations:
+      - effect: NoSchedule
+        key: kubernetes.io/arch
+        operator: Equal
+        value: amd64
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: schema-registry-config
+        name: config
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2025-10-18T16:27:13Z"
+    lastUpdateTime: "2025-10-18T16:42:01Z"
+    message: ReplicaSet "schema-registry-5f7c86cd5f" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2025-10-22T06:39:53Z"
+    lastUpdateTime: "2025-10-22T06:39:53Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  observedGeneration: 5
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1

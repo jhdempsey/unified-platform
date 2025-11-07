@@ -1,0 +1,15 @@
+# Bootstrap script dependencies
+# Install with: pip install -r scripts/requirements.txt
+
+# Kafka & Schema Registry
+confluent-kafka>=2.12.0
+requests>=2.31.0
+
+# Pinecone
+pinecone>=3.0.0
+
+# MLflow
+mlflow>=2.9.0
+
+# Utilities
+python-dotenv>=1.0.0

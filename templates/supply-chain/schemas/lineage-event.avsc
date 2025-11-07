@@ -1,0 +1,98 @@
+{
+  "type": "record",
+  "name": "LineageEvent",
+  "namespace": "com.platform.events",
+  "doc": "Event capturing data lineage and transformations",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": "string",
+      "doc": "Unique identifier for this event"
+    },
+    {
+      "name": "lineage_type",
+      "type": {
+        "type": "enum",
+        "name": "LineageType",
+        "symbols": ["INGESTION", "TRANSFORMATION", "AGGREGATION", "EXPORT", "DERIVATION"]
+      },
+      "doc": "Type of lineage event"
+    },
+    {
+      "name": "source_product_id",
+      "type": "string",
+      "doc": "Source data product ID"
+    },
+    {
+      "name": "target_product_id",
+      "type": "string",
+      "doc": "Target/output data product ID"
+    },
+    {
+      "name": "transformation_name",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Name of the transformation applied"
+    },
+    {
+      "name": "transformation_logic",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Description or code of transformation"
+    },
+    {
+      "name": "input_records",
+      "type": "long",
+      "default": 0,
+      "doc": "Number of input records processed"
+    },
+    {
+      "name": "output_records",
+      "type": "long",
+      "default": 0,
+      "doc": "Number of output records produced"
+    },
+    {
+      "name": "execution_time_ms",
+      "type": "long",
+      "default": 0,
+      "doc": "Execution time in milliseconds"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "ExecutionStatus",
+        "symbols": ["SUCCESS", "PARTIAL_SUCCESS", "FAILED", "SKIPPED"]
+      },
+      "doc": "Execution status"
+    },
+    {
+      "name": "error_message",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Error message if failed"
+    },
+    {
+      "name": "agent_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID of agent that performed transformation"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in milliseconds since epoch"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata"
+    }
+  ]
+}

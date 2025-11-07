@@ -1,0 +1,213 @@
+# Multiple Kubernetes resources
+# 
+# Deployment Order:
+# 1. Deploy Kafka StatefulSet (this file)
+# 2. Deploy Schema Registry (this file)
+# 3. Run kafka-topics-job.yaml to create topics
+# 4. Deploy ML Consumer
+# 5. Deploy Event Producers
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  labels:
+    app: kafka
+spec:
+  ports:
+  - port: 9092
+    name: plaintext
+  - port: 9093
+    name: controller
+  clusterIP: None
+  selector:
+    app: kafka
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+spec:
+  serviceName: kafka
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsNonRoot: true
+      initContainers:
+      - name: cleanup
+        image: busybox:1.35
+        command: ['sh', '-c', 'rm -rf /var/lib/kafka/data/lost+found']
+        volumeMounts:
+        - name: kafka-data
+          mountPath: /var/lib/kafka/data
+        securityContext:
+          runAsUser: 1000
+          runAsNonRoot: true
+      containers:
+      - name: kafka
+        image: confluentinc/cp-kafka:7.5.0
+        ports:
+        - containerPort: 9092
+          name: plaintext
+        - containerPort: 9093
+          name: controller
+        env:
+        - name: KAFKA_NODE_ID
+          value: "1"
+        - name: KAFKA_PROCESS_ROLES
+          value: "broker,controller"
+        - name: KAFKA_LISTENERS
+          value: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: "PLAINTEXT://kafka-0.kafka.default.svc.cluster.local:9092"
+        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+          value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+        - name: KAFKA_CONTROLLER_LISTENER_NAMES
+          value: "CONTROLLER"
+        - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+          value: "1@kafka-0.kafka.default.svc.cluster.local:9093"
+        - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+          value: "1"
+        - name: KAFKA_LOG_DIRS
+          value: "/var/lib/kafka/data"
+        - name: CLUSTER_ID
+          value: "MkU3OEVBNTcwNTJENDM2Qk"
+        volumeMounts:
+        - name: kafka-data
+          mountPath: /var/lib/kafka/data
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+  volumeClaimTemplates:
+  - metadata:
+      name: kafka-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "standard-rwo"
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: schema-registry-config
+  labels:
+    app: schema-registry
+data:
+  schema-registry.properties: |
+    listeners=http://0.0.0.0:8081
+    kafkastore.bootstrap.servers=kafka:9092
+    kafkastore.timeout.ms=60000
+    kafkastore.init.timeout.ms=90000
+    kafkastore.topic=_schemas
+    kafkastore.topic.replication.factor=1
+    schema.registry.group.id=schema-registry
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: schema-registry
+  labels:
+    app: schema-registry
+spec:
+  ports:
+  - port: 8081
+    name: http
+  selector:
+    app: schema-registry
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: schema-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: schema-registry
+  template:
+    metadata:
+      labels:
+        app: schema-registry
+    spec:
+      initContainers:
+      - name: wait-for-kafka
+        image: busybox:1.35
+        command: ['sh', '-c']
+        args:
+        - |
+          echo "Waiting for Kafka port to be open..."
+          until nc -z kafka 9092; do 
+            echo "Kafka not ready, waiting..."
+            sleep 2
+          done
+          echo "Port 9092 is open. Waiting 45s for Kafka broker to fully initialize..."
+          sleep 45
+          echo "Kafka should be ready now"
+      containers:
+      - name: schema-registry
+        image: confluentinc/cp-schema-registry:7.5.0
+        ports:
+        - containerPort: 8081
+        # Mount the ConfigMap as a volume
+        volumeMounts:
+        - name: config
+          mountPath: /etc/schema-registry-custom
+        # Use the custom config file
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          schema-registry-start /etc/schema-registry-custom/schema-registry.properties
+        env:
+        - name: SCHEMA_REGISTRY_HEAP_OPTS
+          value: "-Xms512M -Xmx512M"
+        startupProbe:
+          httpGet:
+            path: /subjects
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 12
+        livenessProbe:
+          httpGet:
+            path: /subjects
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /subjects
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "768Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      # Define the volume from ConfigMap
+      volumes:
+      - name: config
+        configMap:
+          name: schema-registry-config

@@ -1,0 +1,14 @@
+# Discovery Agent Requirements
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+kafka-python==2.0.2
+confluent-kafka==2.3.0
+avro-python3==1.10.2
+requests==2.31.0
+pydantic==2.5.0
+
+# For product recommender agent
+anthropic>=0.25.0
+
+# Additional dependencies
+python-dateutil

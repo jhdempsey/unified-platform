@@ -1,0 +1,22 @@
+# GCP Configuration
+project_id   = "your-gcp-project-id"
+project_name = "ai-platform"
+region       = "us-central1"
+environment  = "demo"
+
+# Cost Optimization Settings (for demo)
+use_autopilot    = true          # GKE Autopilot (easier + cheaper)
+use_preemptible  = true          # Preemptible nodes (70% cheaper)
+redis_tier       = "BASIC"       # Basic Redis (cheaper)
+redis_memory_gb  = 1             # Minimum memory
+min_nodes        = 1             # Minimum nodes
+max_nodes        = 3             # Maximum nodes
+max_cloud_run_instances = 10    # Cloud Run max instances
+
+# Security (demo only - use IAM in production)
+allow_unauthenticated = true     # Set false in production
+
+# API Keys (optional - leave empty for demo mode)
+# gemini_api_key    = ""
+# openai_api_key    = ""
+# anthropic_api_key = ""

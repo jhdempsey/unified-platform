@@ -1,0 +1,154 @@
+{
+  "type": "record",
+  "name": "OrderAnomalyDetection",
+  "namespace": "com.platform.products.fraud",
+  "doc": "Real-time order anomaly detection with risk scoring and fraud indicators",
+  "fields": [
+    {
+      "name": "order_id",
+      "type": "string",
+      "doc": "Unique order identifier"
+    },
+    {
+      "name": "customer_id",
+      "type": "string",
+      "doc": "Customer identifier"
+    },
+    {
+      "name": "event_timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Order event timestamp"
+    },
+    {
+      "name": "processing_timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Anomaly detection processing timestamp"
+    },
+    {
+      "name": "order_amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 10,
+        "scale": 2
+      },
+      "doc": "Order total amount"
+    },
+    {
+      "name": "currency_code",
+      "type": "string",
+      "doc": "ISO 4217 currency code"
+    },
+    {
+      "name": "payment_method",
+      "type": "string",
+      "doc": "Payment method used"
+    },
+    {
+      "name": "shipping_address_hash",
+      "type": "string",
+      "doc": "Hashed shipping address for privacy"
+    },
+    {
+      "name": "billing_address_hash",
+      "type": "string",
+      "doc": "Hashed billing address for privacy"
+    },
+    {
+      "name": "anomaly_score",
+      "type": "double",
+      "doc": "ML-generated anomaly score (0.0-1.0)"
+    },
+    {
+      "name": "risk_level",
+      "type": {
+        "type": "enum",
+        "name": "RiskLevel",
+        "symbols": [
+          "LOW",
+          "MEDIUM",
+          "HIGH",
+          "CRITICAL"
+        ]
+      },
+      "doc": "Categorical risk assessment"
+    },
+    {
+      "name": "anomaly_indicators",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "doc": "List of specific anomaly patterns detected"
+    },
+    {
+      "name": "velocity_flags",
+      "type": {
+        "type": "record",
+        "name": "VelocityFlags",
+        "fields": [
+          {
+            "name": "orders_last_hour",
+            "type": "int",
+            "doc": "Number of orders from customer in last hour"
+          },
+          {
+            "name": "amount_last_24h",
+            "type": [
+              "null",
+              {
+                "type": "bytes",
+                "logicalType": "decimal",
+                "precision": 12,
+                "scale": 2
+              }
+            ],
+            "default": null,
+            "doc": "Total amount spent in last 24 hours"
+          },
+          {
+            "name": "unique_addresses_last_week",
+            "type": "int",
+            "doc": "Number of unique shipping addresses used in last week"
+          }
+        ]
+      },
+      "doc": "Customer velocity indicators"
+    },
+    {
+      "name": "device_fingerprint",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null,
+      "doc": "Device fingerprint hash"
+    },
+    {
+      "name": "ip_risk_score",
+      "type": [
+        "null",
+        "double"
+      ],
+      "default": null,
+      "doc": "IP address risk score"
+    },
+    {
+      "name": "geolocation_anomaly",
+      "type": "boolean",
+      "doc": "Flag for unusual geographic patterns"
+    },
+    {
+      "name": "model_version",
+      "type": "string",
+      "doc": "Version of ML model used for scoring"
+    },
+    {
+      "name": "confidence_score",
+      "type": "double",
+      "doc": "Model confidence in anomaly detection (0.0-1.0)"
+    }
+  ]
+}
