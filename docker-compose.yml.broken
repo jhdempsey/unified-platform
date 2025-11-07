@@ -13,6 +13,12 @@ x-common-environment: &common-env
   DATABASE_URL: postgresql://platform:platform_dev@postgres:5432/platform
   REDIS_URL: redis://redis:6379
 
+  # API Keys
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  PINECONE_API_KEY: ${PINECONE_API_KEY}
+  PINECONE_CLOUD: ${PINECONE_CLOUD:-aws}
+  PINECONE_REGION: ${PINECONE_REGION:-us-east-1}
 services:
   # ============================================================================
   # EVENT STREAMING LAYER
@@ -297,44 +303,6 @@ services:
     restart: unless-stopped
 
   # ============================================================================
-  # MCP SERVER
-  # ============================================================================
-  
-  mcp-server:
-    build:
-      context: ./core/services/mcp-server
-      dockerfile: Dockerfile
-    container_name: platform-mcp-server
-    ports:
-      - "8003:8003"
-    environment:
-      <<: *common-env
-      PORT: 8003
-    networks:
-      - platform-network
-    restart: unless-stopped
-
-  # ============================================================================
-  # EVENT PRODUCER (Data Simulator)
-  # ============================================================================
-  
-  event-producer:
-    build:
-      context: ./core/services/event-producer
-      dockerfile: Dockerfile
-    container_name: platform-event-producer
-    depends_on:
-      kafka:
-        condition: service_healthy
-      schema-registry:
-        condition: service_healthy
-    environment:
-      <<: *common-env
-    networks:
-      - platform-network
-    restart: unless-stopped  
-
-  # ============================================================================
   # OBSERVABILITY LAYER
   # ============================================================================
   
@@ -400,3 +368,48 @@ volumes:
   flink_data:
   prometheus_data:
   grafana_data:
+
+  # ============================================================================
+  # MCP SERVER
+  # ============================================================================
+  mcp-server:
+    build:
+      context: ./core/services/mcp-server
+      dockerfile: Dockerfile
+    container_name: platform-mcp-server
+    ports:
+      - "8003:8003"
+    environment:
+      <<: *common-env
+      PORT: 8003
+      RAG_SERVICE_URL: http://rag-service:8005
+    networks:
+      - platform-network
+    restart: unless-stopped
+    
+  # ============================================================================
+  # EVENT PRODUCER (Data Simulator)
+  # ============================================================================
+  event-producer:
+    build:
+      context: ./core/services/event-producer
+      dockerfile: Dockerfile
+    container_name: platform-event-producer
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      <<: *common-env
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      # Control event generation rate
+      EVENTS_PER_SECOND: ${EVENTS_PER_SECOND:-10}
+      # Which topics to produce to
+      PRODUCE_ORDERS: "true"
+      PRODUCE_SUPPLIERS: "true"
+      PRODUCE_QUALITY_ALERTS: "true"
+    networks:
+      - platform-network
+    restart: unless-stopped
