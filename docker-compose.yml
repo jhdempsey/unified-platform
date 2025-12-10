@@ -507,6 +507,27 @@ services:
       - platform-network
     restart: unless-stopped
 
+  # ============================================================================
+  # Developer Portal
+  # ============================================================================
+
+  backstage:
+    image: unified-platform-backstage
+    container_name: platform-backstage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:7007"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: platform
+      POSTGRES_PASSWORD: platform_dev
+    networks:
+      - platform-network
+    restart: unless-stopped
+
 networks:
   platform-network:
     driver: bridge

@@ -1,0 +1,404 @@
+# ==============================================================================
+# Unified Platform - Service Catalog
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# System Definition
+# ------------------------------------------------------------------------------
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: unified-platform
+  description: Multi-Vertical Event-Driven ML/AI Platform
+  tags:
+    - ml
+    - ai
+    - kafka
+    - flink
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+spec:
+  owner: platform-team
+  domain: data-platform
+
+---
+# ------------------------------------------------------------------------------
+# Platform Services
+# ------------------------------------------------------------------------------
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: product-service
+  description: Data Product CRUD API - manages data product lifecycle
+  tags:
+    - python
+    - fastapi
+    - crud
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: http://localhost:8001/docs
+      title: API Docs
+      icon: api
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  providesApis:
+    - product-api
+  dependsOn:
+    - resource:postgres
+    - resource:kafka
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: product-generator-agent
+  description: AI-powered data product creation agent
+  tags:
+    - python
+    - fastapi
+    - ai
+    - anthropic
+  links:
+    - url: http://localhost:8003/docs
+      title: API Docs
+      icon: api
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  dependsOn:
+    - component:product-service
+    - resource:kafka
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: discovery-agent
+  description: Topic discovery and AI-powered schema analysis
+  tags:
+    - python
+    - fastapi
+    - ai
+    - discovery
+  links:
+    - url: http://localhost:8004/docs
+      title: API Docs
+      icon: api
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  dependsOn:
+    - resource:kafka
+    - resource:schema-registry
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: stream-analysis-agent
+  description: Real-time data quality monitoring with AI
+  tags:
+    - python
+    - kafka-consumer
+    - ai
+    - quality
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  dependsOn:
+    - resource:kafka
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ai-gateway
+  description: Multi-provider AI routing (Claude, GPT-4, Gemini)
+  tags:
+    - python
+    - fastapi
+    - ai
+    - gateway
+  links:
+    - url: http://localhost:8002/docs
+      title: API Docs
+      icon: api
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  dependsOn:
+    - resource:redis
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: model-inference
+  description: ML model serving service
+  tags:
+    - python
+    - fastapi
+    - ml
+    - inference
+  links:
+    - url: http://localhost:8007/docs
+      title: API Docs
+      icon: api
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  dependsOn:
+    - component:mlflow
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ml-consumer
+  description: Kafka consumer for ML inference pipeline
+  tags:
+    - python
+    - kafka-consumer
+    - ml
+  links:
+    - url: http://localhost:8006/metrics
+      title: Metrics
+      icon: dashboard
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  dependsOn:
+    - resource:kafka
+    - component:model-inference
+    - component:mlflow
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: rag-service
+  description: RAG service with Pinecone and Anthropic
+  tags:
+    - python
+    - fastapi
+    - ai
+    - rag
+    - pinecone
+  links:
+    - url: http://localhost:8005/docs
+      title: API Docs
+      icon: api
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: mcp-server
+  description: Model Context Protocol server
+  tags:
+    - python
+    - fastapi
+    - mcp
+  links:
+    - url: http://localhost:8008/docs
+      title: API Docs
+      icon: api
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: event-producer
+  description: Simulated event data generator
+  tags:
+    - python
+    - kafka-producer
+    - simulation
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  dependsOn:
+    - resource:kafka
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dashboard
+  description: Streamlit monitoring dashboard
+  tags:
+    - python
+    - streamlit
+    - dashboard
+  links:
+    - url: http://localhost:8501
+      title: Dashboard
+      icon: dashboard
+spec:
+  type: website
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: mlflow
+  description: ML experiment tracking and model registry
+  tags:
+    - mlflow
+    - ml
+    - tracking
+  links:
+    - url: http://localhost:5001
+      title: MLflow UI
+      icon: dashboard
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  dependsOn:
+    - resource:postgres
+
+---
+# ------------------------------------------------------------------------------
+# Infrastructure Resources
+# ------------------------------------------------------------------------------
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: kafka
+  description: Apache Kafka (KRaft mode) - Event streaming
+  tags:
+    - kafka
+    - streaming
+  links:
+    - url: http://localhost:8080
+      title: Kafka UI
+      icon: dashboard
+spec:
+  type: messaging
+  owner: platform-team
+  system: unified-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: schema-registry
+  description: Confluent Schema Registry for Avro schemas
+  tags:
+    - schema-registry
+    - avro
+spec:
+  type: messaging
+  owner: platform-team
+  system: unified-platform
+  dependsOn:
+    - resource:kafka
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: postgres
+  description: PostgreSQL database
+  tags:
+    - postgres
+    - database
+spec:
+  type: database
+  owner: platform-team
+  system: unified-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: redis
+  description: Redis cache
+  tags:
+    - redis
+    - cache
+spec:
+  type: database
+  owner: platform-team
+  system: unified-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: flink
+  description: Apache Flink stream processing
+  tags:
+    - flink
+    - streaming
+  links:
+    - url: http://localhost:8085
+      title: Flink Dashboard
+      icon: dashboard
+spec:
+  type: compute
+  owner: platform-team
+  system: unified-platform
+
+---
+# ------------------------------------------------------------------------------
+# APIs
+# ------------------------------------------------------------------------------
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: product-api
+  description: Data Product Management API
+  tags:
+    - rest
+    - openapi
+spec:
+  type: openapi
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  definition: |
+    openapi: "3.0.0"
+    info:
+      title: Product Service API
+      version: "1.0.0"
+    paths:
+      /products:
+        get:
+          summary: List all products
+      /products/{id}:
+        get:
+          summary: Get product by ID

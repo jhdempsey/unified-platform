@@ -1,0 +1,83 @@
+app:
+  title: Unified Platform Portal
+  baseUrl: http://localhost:3000
+
+organization:
+  name: Unified Platform
+
+backend:
+  baseUrl: http://localhost:7007
+  listen:
+    port: 7007
+  csp:
+    connect-src:
+      - "'self'"
+      - "http:"
+      - "https:"
+  cors:
+    origin: http://localhost:3000
+    methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+    credentials: true
+  database:
+    client: better-sqlite3
+    connection: ':memory:'
+  auth:
+    dangerouslyDisableDefaultAuthPolicy: true
+
+integrations:
+  github:
+    - host: github.com
+      token: ${GITHUB_TOKEN}
+
+proxy:
+  endpoints:
+    '/product-service':
+      target: http://localhost:8001
+      changeOrigin: true
+    '/product-generator':
+      target: http://localhost:8003
+      changeOrigin: true
+    '/discovery-agent':
+      target: http://localhost:8004
+      changeOrigin: true
+    '/ai-gateway':
+      target: http://localhost:8002
+      changeOrigin: true
+
+techdocs:
+  builder: 'local'
+  generator:
+    runIn: 'local'
+  publisher:
+    type: 'local'
+
+auth:
+  providers:
+    guest: {}
+
+catalog:
+  import:
+    entityFilename: catalog-info.yaml
+    pullRequestBranchName: backstage-integration
+  rules:
+    - allow: [Component, System, API, Resource, Location, Template, User, Group]
+  locations:
+    - type: file
+      target: ../../examples/platform-services.yaml
+      rules:
+        - allow: [Component, System, API, Resource]
+    - type: file
+      target: ../../examples/entities.yaml
+      rules:
+        - allow: [Component, System, API, Resource]
+    - type: file
+      target: ../../examples/template/template.yaml
+      rules:
+        - allow: [Template]
+    - type: file
+      target: ../../examples/org.yaml
+      rules:
+        - allow: [User, Group]
+
+permission:
+  enabled: false
