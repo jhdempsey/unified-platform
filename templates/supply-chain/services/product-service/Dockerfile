@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies (added fastavro)
 RUN pip install --no-cache-dir \
     fastapi==0.104.1 \
     uvicorn[standard]==0.24.0 \
@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir \
     sqlalchemy==2.0.23 \
     psycopg2-binary==2.9.9 \
     confluent-kafka==2.3.0 \
+    fastavro==1.9.0 \
     requests==2.31.0 \
     python-dotenv==1.0.0
 

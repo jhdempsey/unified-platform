@@ -2,10 +2,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies (added fastavro)
 RUN pip install --no-cache-dir \
     confluent-kafka==2.3.0 \
-    anthropic==0.25.0 \
+    fastavro==1.9.0 \
+    anthropic==0.39.0 \
+    httpx==0.27.0 \
     requests==2.31.0 \
     python-dotenv==1.0.0 \
     pydantic==2.5.0
