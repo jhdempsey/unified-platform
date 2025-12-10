@@ -157,6 +157,7 @@ services:
     environment:
       <<: *common-env
       PORT: 8004
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
       - ./core/shared:/app/shared:ro 
     networks:
