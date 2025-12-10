@@ -252,7 +252,7 @@ services:
     depends_on:
       - mlflow
     ports:
-      - "8001:8001"
+      - "8007:8001"
     environment:
       <<: *common-env
     volumes:
@@ -307,7 +307,7 @@ services:
       dockerfile: Dockerfile
     container_name: platform-mcp-server
     ports:
-      - "8003:8003"
+      - "8008:8003"
     environment:
       <<: *common-env
       PORT: 8003
@@ -415,6 +415,87 @@ services:
     ports:
       - "8006:8000"
 
+
+  product-service:
+    build:
+      context: .
+      dockerfile: templates/supply-chain/services/product-service/Dockerfile
+    container_name: platform-product-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql://platform:platform_dev@postgres:5432/platform
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./core/shared:/app/shared:ro
+    networks:
+      - platform-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  product-generator-agent:
+    build:
+      context: .
+      dockerfile: core/agents/product-generator-agent/Dockerfile
+    container_name: platform-product-generator
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    ports:
+      - "8003:8003"
+    environment:
+      <<: *common-env
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      PRODUCT_SERVICE_URL: http://product-service:8001
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./core/shared:/app/shared:ro
+    networks:
+      - platform-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  stream-analysis-agent:
+    build:
+      context: .
+      dockerfile: core/agents/stream-analysis-agent/Dockerfile
+    container_name: platform-stream-analysis
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      <<: *common-env
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./core/shared:/app/shared:ro
+    networks:
+      - platform-network
+    restart: unless-stopped
 
 networks:
   platform-network:
