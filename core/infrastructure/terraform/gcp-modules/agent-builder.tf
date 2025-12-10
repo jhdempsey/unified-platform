@@ -37,7 +37,7 @@ resource "google_discovery_engine_chat_engine" "supply_chain_assistant" {
   }
 
   common_config {
-    company_name = "iTradeNetwork"
+    company_name = "demoSupplyChainInc"
   }
 
   project = var.project_id

@@ -1075,7 +1075,7 @@ elif page == "🧠 ML Models":
                         "warehouse_distance": float(distance),
                         "day_of_week": int(day),
                         "season": int(season),
-                        "supplier_reliability": float(reliability),  # Convert 0-1 to 0-100
+                        "supplier_reliability": float(reliability) * 100,  # Convert 0-1 to 0-100
                         "weather_condition": int(weather),
                     }
 

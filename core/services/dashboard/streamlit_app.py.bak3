@@ -1,45 +1,13 @@
-import logging
-import os
-
+import streamlit as st
 import pandas as pd
 import requests
-import streamlit as st
+import time
+from datetime import datetime
+from typing import Dict, List, Optional
+import json
 
-# ============================================================================
-# ENVIRONMENT-AWARE CONFIGURATION
-# ============================================================================
-# Service URLs - automatically adapt to local Docker or GCP deployment
-ENVIRONMENT = os.getenv("ENVIRONMENT", "dev")
-VERTICAL = os.getenv("VERTICAL", "supply-chain")
-
-KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
-MODEL_INFERENCE_URL = os.getenv("MODEL_INFERENCE_URL", "http://model-inference:8001")
-RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://rag-service:8005")
-PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
-
-# MLflow UI URL for browser (localhost for dev, tracking URI for production)
-MLFLOW_UI_URL = "http://localhost:5001" if ENVIRONMENT == "dev" else MLFLOW_TRACKING_URI
-
-# UI URLs for browser links (localhost for dev)
-MODEL_INFERENCE_UI_URL = "http://localhost:8001"
-RAG_SERVICE_UI_URL = "http://localhost:8005"
-AI_GATEWAY_UI_URL = "http://localhost:8002"
-PROMETHEUS_UI_URL = "http://localhost:9091"
-DISCOVERY_AGENT_UI_URL = "http://localhost:8004"
-KAFKA_UI_URL = "http://localhost:8080"
-
-
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Page config
-st.set_page_config(
-    page_title="AI Platform Dashboard",
-    page_icon="🚀",
-    layout="wide",
+# Import environment-aware configuration
+from config import (
     initial_sidebar_state="expanded",
 )
 
@@ -344,9 +312,7 @@ st.markdown(
 # Configuration
 MLFLOW_TRACKING_URI = MLFLOW_TRACKING_URI
 RAG_URL = "https://rag-service-742330383495.us-central1.run.app"
-AI_GATEWAY_URL = os.getenv("AI_GATEWAY_URL", "http://ai-gateway:8002")
-AI_GATEWAY_UI_URL = os.getenv("AI_GATEWAY_UI_URL", "http://localhost:8002")
-# Old line: AI_GATEWAY_URL = os.getenv("AI_GATEWAY_URL", "http://ai-gateway:8002")
+AI_GATEWAY_URL = "https://ai-gateway-dakmfhg3aa-uc.a.run.app"
 MODEL_INFERENCE_URL = MODEL_INFERENCE_URL
 # METRICS_API_URL = PROMETHEUS_URL
 METRICS_API_URL = os.getenv(
@@ -603,14 +569,14 @@ if page == "🏠 Overview":
         st.markdown("### 🔗 Quick Links")
         col_a, col_b, col_c = st.columns(3)
         with col_a:
-            st.link_button("Open MLflow Dashboard", MLFLOW_UI_URL, use_container_width=True)
+            st.link_button("🧪 MLflow", MLFLOW_TRACKING_URI, use_container_width=True)
         with col_b:
             st.link_button(
-                "🚪 Gateway", AI_GATEWAY_UI_URL + "/health", use_container_width=True
+                "🚪 Gateway", AI_GATEWAY_URL + "/health", use_container_width=True
             )
         with col_c:
             st.link_button(
-                "🧠 ML Models", MODEL_INFERENCE_UI_URL, use_container_width=True
+                "🧠 ML Models", MODEL_INFERENCE_URL, use_container_width=True
             )
 
 elif page == "📊 Live Pipeline":
@@ -1075,7 +1041,7 @@ elif page == "🧠 ML Models":
                         "warehouse_distance": float(distance),
                         "day_of_week": int(day),
                         "season": int(season),
-                        "supplier_reliability": float(reliability),  # Convert 0-1 to 0-100
+                        "supplier_reliability": float(reliability),
                         "weather_condition": int(weather),
                     }
 
@@ -1254,10 +1220,10 @@ elif page == "🧠 ML Models":
     st.markdown("---")
     col_a, col_b, col_c = st.columns(3)
     with col_a:
-        st.link_button("Open MLflow Dashboard", MLFLOW_UI_URL, use_container_width=True)
+        st.link_button("🧪 View in MLflow", MLFLOW_TRACKING_URI, use_container_width=True)
     with col_b:
         st.link_button(
-            "📖 Model API Docs", f"{MODEL_INFERENCE_UI_URL}/docs", use_container_width=True
+            "📖 Model API Docs", f"{MODEL_INFERENCE_URL}/docs", use_container_width=True
         )
     with col_c:
         if st.button("🔄 Refresh Page", use_container_width=True, key="refresh"):
@@ -1335,7 +1301,7 @@ elif page == "🧪 MLflow":
     with col2:
         st.link_button(
             "🚀 Open MLflow Dashboard",
-            MLFLOW_UI_URL,
+            MLFLOW_TRACKING_URI,
             use_container_width=True,
             type="primary",
         )

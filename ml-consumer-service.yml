@@ -1,0 +1,27 @@
+  ml-consumer:
+    build:
+      context: .
+      dockerfile: core/services/ml-consumer/Dockerfile
+    container_name: platform-ml-consumer
+    networks:
+      - platform-network
+    environment:
+      <<: *common-env
+      VERTICAL: ${VERTICAL:-supply-chain}
+      KAFKA_TOPIC: supply-chain.orders
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      KAFKA_GROUP_ID: ml-consumer-group
+    volumes:
+      - ./templates/${VERTICAL:-supply-chain}/models:/app/vertical-models:ro
+    depends_on:
+      - kafka
+      - mlflow
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    ports:
+      - "8006:8000"
+

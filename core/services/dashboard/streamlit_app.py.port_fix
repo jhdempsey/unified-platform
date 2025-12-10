@@ -1,8 +1,26 @@
 import logging
+import os
 
 import pandas as pd
 import requests
 import streamlit as st
+
+# ============================================================================
+# ENVIRONMENT-AWARE CONFIGURATION
+# ============================================================================
+# Service URLs - automatically adapt to local Docker or GCP deployment
+ENVIRONMENT = os.getenv("ENVIRONMENT", "dev")
+VERTICAL = os.getenv("VERTICAL", "supply-chain")
+
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
+MODEL_INFERENCE_URL = os.getenv("MODEL_INFERENCE_URL", "http://model-inference:8001")
+RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://rag-service:8005")
+PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
+
+# MLflow UI URL for browser (localhost for dev, tracking URI for production)
+MLFLOW_UI_URL = "http://localhost:5000" if ENVIRONMENT == "dev" else MLFLOW_TRACKING_URI
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -315,11 +333,14 @@ st.markdown(
 
 
 # Configuration
-MLFLOW_URL = "http://34.135.31.127:5000"
+MLFLOW_TRACKING_URI = MLFLOW_TRACKING_URI
 RAG_URL = "https://rag-service-742330383495.us-central1.run.app"
 AI_GATEWAY_URL = "https://ai-gateway-dakmfhg3aa-uc.a.run.app"
-MODEL_INFERENCE_URL = "http://34.68.61.142"
-METRICS_API_URL = "http://34.16.20.245"
+MODEL_INFERENCE_URL = MODEL_INFERENCE_URL
+# METRICS_API_URL = PROMETHEUS_URL
+METRICS_API_URL = os.getenv(
+    "ML_CONSUMER_METRICS_URL", PROMETHEUS_URL
+).replace("/metrics", "")
 
 
 def get_kafka_metrics():
@@ -571,7 +592,7 @@ if page == "🏠 Overview":
         st.markdown("### 🔗 Quick Links")
         col_a, col_b, col_c = st.columns(3)
         with col_a:
-            st.link_button("🧪 MLflow", MLFLOW_URL, use_container_width=True)
+            st.link_button("🧪 MLflow", MLFLOW_TRACKING_URI, use_container_width=True)
         with col_b:
             st.link_button(
                 "🚪 Gateway", AI_GATEWAY_URL + "/health", use_container_width=True
@@ -880,8 +901,8 @@ elif page == "🧠 ML Models":
 
                     # Top 3 features
                     st.markdown("**Top 3 Predictors:**")
-                    for row in importance_df.head(3).iterrows():
-                        st.markdown(f"- **{row['Feature']}**: {row['Importance']:.3f}")
+                    for row in importance_df.head(3).itertuples(index=False, name=None):
+                        st.markdown(f"- **{row[0]}**: {row[1]:.3f}")
 
                 # MLflow integration info - wider box
                 if model_info.get("mlflow_run_id"):
@@ -1222,7 +1243,7 @@ elif page == "🧠 ML Models":
     st.markdown("---")
     col_a, col_b, col_c = st.columns(3)
     with col_a:
-        st.link_button("🧪 View in MLflow", MLFLOW_URL, use_container_width=True)
+        st.link_button("🧪 View in MLflow", MLFLOW_TRACKING_URI, use_container_width=True)
     with col_b:
         st.link_button(
             "📖 Model API Docs", f"{MODEL_INFERENCE_URL}/docs", use_container_width=True
@@ -1230,6 +1251,105 @@ elif page == "🧠 ML Models":
     with col_c:
         if st.button("🔄 Refresh Page", use_container_width=True, key="refresh"):
             st.rerun()
+
+elif page == "🧪 MLflow":
+    st.title("🧪 MLflow Experiment Tracking")
+    st.markdown("Model versioning and experiment management")
+
+    # MLflow status
+    try:
+        mlflow_health = requests.get(f"{MLFLOW_TRACKING_URI}/health", timeout=5)
+        if mlflow_health.status_code == 200:
+            st.markdown(
+                '<div class="success-box">🟢 MLflow Connected</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.error("❌ MLflow Unavailable")
+    except Exception as e:
+        st.error(f"❌ Cannot reach MLflow: {str(e)}")
+
+    st.markdown("---")
+
+    # Quick stats
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Experiments", "3", "+0")
+    with col2:
+        st.metric("Total Runs", "150+", "+50 today")
+    with col3:
+        st.metric("Models", "3", "Active")
+    with col4:
+        st.metric("Backend", "PostgreSQL", "✅")
+
+    st.markdown("---")
+
+    # Experiment info
+    st.markdown("### 📊 Active Experiments")
+
+    experiments = pd.DataFrame(
+        {
+            "Experiment": [
+                "supply-chain.orders",
+                "supply-chain.predictions",
+                "supply-chain.alerts",
+            ],
+            "Runs": ["50+", "50+", "5+"],
+            "Description": [
+                "Order intake and validation tracking",
+                "ML model predictions and performance",
+                "High-risk alerts and interventions",
+            ],
+            "Status": ["🟢 Active", "🟢 Active", "🟢 Active"],
+        }
+    )
+
+    st.dataframe(experiments, use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+
+    # MLflow UI link
+    st.markdown("### 🔗 MLflow UI")
+    st.markdown(
+        """
+    Click below to open the full MLflow UI to:
+    - View experiment runs in detail
+    - Compare model performance
+    - Inspect parameters and metrics
+    - Download model artifacts
+    """
+    )
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.link_button(
+            "🚀 Open MLflow Dashboard",
+            MLFLOW_TRACKING_URI,
+            use_container_width=True,
+            type="primary",
+        )
+
+    st.markdown("---")
+
+    # Recent activity
+    st.markdown("### 🕐 Recent Runs")
+    recent_runs = pd.DataFrame(
+        {
+            "Experiment": [
+                "predictions",
+                "predictions",
+                "orders",
+                "alerts",
+                "predictions",
+            ],
+            "Run ID": ["abc123...", "def456...", "ghi789...", "jkl012...", "mno345..."],
+            "Status": ["✅ Finished"] * 5,
+            "Duration": ["1.2s", "0.9s", "0.5s", "1.8s", "1.1s"],
+            "Time": ["2 min ago", "3 min ago", "5 min ago", "7 min ago", "9 min ago"],
+        }
+    )
+
+    st.dataframe(recent_runs, use_container_width=True, hide_index=True)
 
 else:  # Health
     st.title("❤️ System Health")

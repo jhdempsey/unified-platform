@@ -21,15 +21,6 @@ PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 # MLflow UI URL for browser (localhost for dev, tracking URI for production)
 MLFLOW_UI_URL = "http://localhost:5001" if ENVIRONMENT == "dev" else MLFLOW_TRACKING_URI
 
-# UI URLs for browser links (localhost for dev)
-MODEL_INFERENCE_UI_URL = "http://localhost:8001"
-RAG_SERVICE_UI_URL = "http://localhost:8005"
-AI_GATEWAY_UI_URL = "http://localhost:8002"
-PROMETHEUS_UI_URL = "http://localhost:9091"
-DISCOVERY_AGENT_UI_URL = "http://localhost:8004"
-KAFKA_UI_URL = "http://localhost:8080"
-
-
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -344,9 +335,7 @@ st.markdown(
 # Configuration
 MLFLOW_TRACKING_URI = MLFLOW_TRACKING_URI
 RAG_URL = "https://rag-service-742330383495.us-central1.run.app"
-AI_GATEWAY_URL = os.getenv("AI_GATEWAY_URL", "http://ai-gateway:8002")
-AI_GATEWAY_UI_URL = os.getenv("AI_GATEWAY_UI_URL", "http://localhost:8002")
-# Old line: AI_GATEWAY_URL = os.getenv("AI_GATEWAY_URL", "http://ai-gateway:8002")
+AI_GATEWAY_URL = "https://ai-gateway-dakmfhg3aa-uc.a.run.app"
 MODEL_INFERENCE_URL = MODEL_INFERENCE_URL
 # METRICS_API_URL = PROMETHEUS_URL
 METRICS_API_URL = os.getenv(
@@ -1075,7 +1064,7 @@ elif page == "🧠 ML Models":
                         "warehouse_distance": float(distance),
                         "day_of_week": int(day),
                         "season": int(season),
-                        "supplier_reliability": float(reliability),  # Convert 0-1 to 0-100
+                        "supplier_reliability": float(reliability),
                         "weather_condition": int(weather),
                     }
 

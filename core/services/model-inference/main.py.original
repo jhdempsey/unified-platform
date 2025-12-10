@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+import mlflow
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
@@ -310,6 +311,19 @@ async def train_model(
     def _train():
         try:
             print(f"🚀 Starting training for {model_name}...")
+
+            # CRITICAL FIX: Set MLflow experiment BEFORE creating model instance
+            if request.log_to_mlflow:
+                import os
+
+                mlflow_uri = os.getenv(
+                    "MLFLOW_TRACKING_URI",
+                    "http://mlflow.default.svc.cluster.local:5000",
+                )
+                mlflow.set_tracking_uri(mlflow_uri)
+                mlflow.set_experiment("supply-chain.predictions")  # ✅ With dots!
+                print("🔗 MLflow experiment set: supply-chain.predictions")
+
             model = SupplyChainRFModel()
             model.train(
                 n_estimators=request.n_estimators,

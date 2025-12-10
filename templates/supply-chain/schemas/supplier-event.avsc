@@ -2,7 +2,7 @@
   "type": "record",
   "name": "SupplierEvent",
   "namespace": "com.platform.events",
-  "doc": "Event representing changes to supplier data in the iTradeNetwork platform",
+  "doc": "Event representing changes to supplier data in the demoSupplyChainInc platform",
   "fields": [
     {
       "name": "event_id",
