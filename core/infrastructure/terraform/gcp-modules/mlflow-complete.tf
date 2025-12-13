@@ -91,33 +91,33 @@ resource "google_sql_user" "mlflow" {
 # Kubernetes Secret for MLflow
 # ============================================================================
 
-resource "kubernetes_secret" "mlflow_db" {
-  metadata {
-    name      = "mlflow-db-secret"
-    namespace = "default"
-  }
-
-  data = {
-    db-password       = random_password.mlflow_db_password.result
-    db-host           = google_sql_database_instance.mlflow.private_ip_address
-    db-name           = google_sql_database.mlflow.name
-    db-user           = google_sql_user.mlflow.name
-    connection-string = "postgresql://${google_sql_user.mlflow.name}:${random_password.mlflow_db_password.result}@${google_sql_database_instance.mlflow.private_ip_address}:5432/${google_sql_database.mlflow.name}"
-  }
-
-  type = "Opaque"
-
-  depends_on = [
-    google_container_cluster.primary,
-    google_sql_database_instance.mlflow,
-    google_sql_database.mlflow,
-    google_sql_user.mlflow
-  ]
-}
-
-# ============================================================================
-# Outputs
-# ============================================================================
+# resource "kubernetes_secret" "mlflow_db" {
+#   metadata {
+#     name      = "mlflow-db-secret"
+#     namespace = "default"
+#   }
+# 
+#   data = {
+#     db-password       = random_password.mlflow_db_password.result
+#     db-host           = google_sql_database_instance.mlflow.private_ip_address
+#     db-name           = google_sql_database.mlflow.name
+#     db-user           = google_sql_user.mlflow.name
+#     connection-string = "postgresql://${google_sql_user.mlflow.name}:${random_password.mlflow_db_password.result}@${google_sql_database_instance.mlflow.private_ip_address}:5432/${google_sql_database.mlflow.name}"
+#   }
+# 
+#   type = "Opaque"
+# 
+#   depends_on = [
+#     google_container_cluster.primary,
+#     google_sql_database_instance.mlflow,
+#     google_sql_database.mlflow,
+#     google_sql_user.mlflow
+#   ]
+# }
+# 
+# # ============================================================================
+# # Outputs
+# # ============================================================================
 
 output "mlflow_db_private_ip" {
   value       = google_sql_database_instance.mlflow.private_ip_address

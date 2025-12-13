@@ -12,7 +12,7 @@ resource "google_discovery_engine_data_store" "supply_chain_docs" {
   content_config              = "NO_CONTENT"  # Using external tools only
   solution_types              = ["SOLUTION_TYPE_CHAT"]
   create_advanced_site_search = false
-
+  
   project = var.project_id
 }
 

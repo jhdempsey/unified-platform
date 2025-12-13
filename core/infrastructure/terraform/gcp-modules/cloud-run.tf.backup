@@ -62,13 +62,13 @@ resource "google_cloud_run_service" "rag_service" {
   ]
 }
 
-# data "kubernetes_service" "ml_consumer" {
-#   metadata {
-#     name      = "ml-consumer"
-#     namespace = "default"
-#   }
-#   depends_on = [kubernetes_service.ml_consumer]
-# }
+data "kubernetes_service" "ml_consumer" {
+  metadata {
+    name      = "ml-consumer"
+    namespace = "default"
+  }
+  depends_on = [kubernetes_service.ml_consumer]
+}
 
 # Allow public access
 resource "google_cloud_run_service_iam_member" "rag_public" {
@@ -104,17 +104,17 @@ resource "google_cloud_run_service" "dashboard" {
 
         env {
           name  = "MLFLOW_URL"
-          value = "http://mlflow-placeholder:5000"
+          value = "http://${data.kubernetes_service.mlflow.status[0].load_balancer[0].ingress[0].ip}:5000"
         }
 
         env {
           name  = "MODEL_INFERENCE_URL"
-          value = "http://model-inference-placeholder"
+          value = "http://${data.kubernetes_service.model_inference.status[0].load_balancer[0].ingress[0].ip}"
         }
 
         env {
           name  = "ML_CONSUMER_METRICS_URL"
-          value = "http://ml-consumer-placeholder:9090/metrics"
+          value = "http://${data.kubernetes_service.ml_consumer.status[0].load_balancer[0].ingress[0].ip}:9090/metrics"
         }
 
         resources {
@@ -159,18 +159,18 @@ resource "google_cloud_run_service_iam_member" "dashboard_public" {
 }
 
 # Data sources for K8s service IPs
-# data "kubernetes_service" "mlflow" {
-#   metadata {
-#     name = "mlflow"
-#   }
-# }
-# 
-# data "kubernetes_service" "model_inference" {
-#   metadata {
-#     name = "model-inference"
-#   }
-# }
-# 
+data "kubernetes_service" "mlflow" {
+  metadata {
+    name = "mlflow"
+  }
+}
+
+data "kubernetes_service" "model_inference" {
+  metadata {
+    name = "model-inference"
+  }
+}
+
 # Outputs
 output "rag_service_url" {
   value       = google_cloud_run_service.rag_service.status[0].url

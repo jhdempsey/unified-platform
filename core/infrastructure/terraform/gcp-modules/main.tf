@@ -41,14 +41,14 @@ provider "google-beta" {
   billing_project       = local.effective_project_id
 }
 
-# Kubernetes provider
-provider "kubernetes" {
-  host                   = "https://${google_container_cluster.primary.endpoint}"
-  token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(
-    google_container_cluster.primary.master_auth[0].cluster_ca_certificate
-  )
-}
+# # Kubernetes provider
+# provider "kubernetes" {
+#   host                   = "https://${google_container_cluster.primary.endpoint}"
+#   token                  = data.google_client_config.default.access_token
+#   cluster_ca_certificate = base64decode(
+#     google_container_cluster.primary.master_auth[0].cluster_ca_certificate
+#   )
+# }
 
 # Enable required APIs
 resource "google_project_service" "required_apis" {
@@ -91,59 +91,59 @@ resource "google_compute_subnetwork" "subnet" {
   }
 }
 
-# GKE Cluster (for Kafka and stateful services)
-resource "google_container_cluster" "primary" {
-  name     = "${var.project_name}-gke"
-  location = var.region
+# # GKE Cluster (for Kafka and stateful services)
+# resource "google_container_cluster" "primary" {
+#   name     = "${var.project_name}-gke"
+#   location = var.region
 
-  # Use autopilot for cost savings
-  enable_autopilot = var.use_autopilot
+#   # Use autopilot for cost savings
+#   enable_autopilot = var.use_autopilot
 
-  # Standard mode settings (if not autopilot)
-  dynamic "node_pool" {
-    for_each = var.use_autopilot ? [] : [1]
-    content {
-      name       = "default-pool"
-      node_count = var.min_nodes
+#   # Standard mode settings (if not autopilot)
+#   dynamic "node_pool" {
+#     for_each = var.use_autopilot ? [] : [1]
+#     content {
+#       name       = "default-pool"
+#       node_count = var.min_nodes
 
-      node_config {
-        machine_type = var.machine_type
-        disk_size_gb = 20
-        disk_type    = "pd-standard"
+#       node_config {
+#         machine_type = var.machine_type
+#         disk_size_gb = 20
+#         disk_type    = "pd-standard"
 
-        # Use preemptible for cost savings
-        preemptible  = var.use_preemptible
+#         # Use preemptible for cost savings
+#         preemptible  = var.use_preemptible
 
-        oauth_scopes = [
-          "https://www.googleapis.com/auth/cloud-platform"
-        ]
+#         oauth_scopes = [
+#           "https://www.googleapis.com/auth/cloud-platform"
+#         ]
 
-        labels = {
-          environment = var.environment
-        }
-      }
+#         labels = {
+#           environment = var.environment
+#         }
+#       }
 
-      autoscaling {
-        min_node_count = var.min_nodes
-        max_node_count = var.max_nodes
-      }
-    }
-  }
+#       autoscaling {
+#         min_node_count = var.min_nodes
+#         max_node_count = var.max_nodes
+#       }
+#     }
+#   }
 
-  network    = google_compute_network.vpc.name
-  subnetwork = google_compute_subnetwork.subnet.name
+#   network    = google_compute_network.vpc.name
+#   subnetwork = google_compute_subnetwork.subnet.name
 
-  ip_allocation_policy {
-    cluster_secondary_range_name  = "pods"
-    services_secondary_range_name = "services"
-  }
+#   ip_allocation_policy {
+#     cluster_secondary_range_name  = "pods"
+#     services_secondary_range_name = "services"
+#   }
 
-  workload_identity_config {
-    workload_pool = "${local.effective_project_id}.svc.id.goog"
-  }
+#   workload_identity_config {
+#     workload_pool = "${local.effective_project_id}.svc.id.goog"
+#   }
 
-  depends_on = [google_project_service.required_apis]
-}
+#   depends_on = [google_project_service.required_apis]
+# }
 
 # Cloud Run for AI Gateway (serverless)
 resource "google_cloud_run_v2_service" "ai_gateway" {
