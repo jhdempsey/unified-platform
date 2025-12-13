@@ -41,18 +41,42 @@ class TopicDiscoveryAgent:
         )
         self.sample_size = sample_size
         
-        # Initialize admin client
-        self.admin_client = AdminClient({
-            'bootstrap.servers': self.bootstrap_servers
-        })
+        # Get SASL credentials from environment (for Confluent Cloud)
+        security_protocol = os.getenv("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")
+        sasl_mechanism = os.getenv("KAFKA_SASL_MECHANISM", "")
+        sasl_username = os.getenv("KAFKA_SASL_USERNAME", "")
+        sasl_password = os.getenv("KAFKA_SASL_PASSWORD", "")
         
-        # Consumer for sampling
-        self.consumer = Consumer({
-            'bootstrap.servers': self.bootstrap_servers,
+        # Base config
+        base_config = {
+            'bootstrap.servers': self.bootstrap_servers
+        }
+        
+        # Add SASL config if using SASL_SSL (Confluent Cloud)
+        if security_protocol == "SASL_SSL":
+            base_config.update({
+                'security.protocol': security_protocol,
+                'sasl.mechanism': sasl_mechanism,
+                'sasl.username': sasl_username,
+                'sasl.password': sasl_password,
+            })
+            print(f"🔐 Using SASL_SSL authentication to {self.bootstrap_servers}")
+        else:
+            print(f"🔓 Using PLAINTEXT connection to {self.bootstrap_servers}")
+        
+        # Initialize admin client
+        self.admin_client = AdminClient(base_config)
+        
+        # Consumer config (includes consumer-specific settings)
+        consumer_config = {
+            **base_config,
             'group.id': 'topic-discovery-agent',
             'auto.offset.reset': 'earliest',
             'enable.auto.commit': False
-        })
+        }
+        
+        # Consumer for sampling
+        self.consumer = Consumer(consumer_config)
     
     def discover_all_topics(self) -> List[Dict[str, Any]]:
         """
@@ -305,10 +329,12 @@ class TopicDiscoveryAgent:
         print("🔍 TOPIC DISCOVERY & ANALYSIS")
         print("=" * 70)
         
-        # Discover topics
+        # Step 1: Discover topics
+        print("\n📍 STEP 1: Discovering Kafka topics...")
         topics = self.discover_all_topics()
         
-        # Analyze each topic
+        # Step 2: Analyze each topic
+        print("\n📍 STEP 2: Analyzing topics...")
         analyzed_topics = []
         
         for topic_info in topics:
