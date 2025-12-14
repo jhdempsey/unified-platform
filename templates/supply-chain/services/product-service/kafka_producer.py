@@ -1,26 +1,24 @@
 """
-Kafka Producer for Product Events
-Publishes product lifecycle events to Kafka
+Kafka Event Producer for Product Service
+Publishes product events to Kafka with Avro serialization
+Supports SASL_SSL authentication for Confluent Cloud
 """
 
 import os
-import uuid
-from datetime import datetime
-from typing import Dict, Any, Optional
-
+import json
+from typing import Optional
 from confluent_kafka import Producer
 from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
 
-from models import DataProduct
-
 
 class ProductEventProducer:
     """
-    Produces product events to Kafka with Avro serialization
+    Produces product events to Kafka
+    Supports both local (PLAINTEXT) and cloud (SASL_SSL) deployments
     """
-    
+
     def __init__(
         self,
         bootstrap_servers: str = None,
@@ -28,7 +26,7 @@ class ProductEventProducer:
     ):
         """
         Initialize producer
-        
+
         Args:
             bootstrap_servers: Kafka bootstrap servers
             schema_registry_url: Schema Registry URL
@@ -41,128 +39,158 @@ class ProductEventProducer:
             "SCHEMA_REGISTRY_URL",
             "http://localhost:18081"
         )
-        
-        # Initialize Schema Registry client
-        self.schema_registry_client = SchemaRegistryClient({
-            'url': self.schema_registry_url
-        })
-        
-        # Initialize Kafka producer
-        self.producer = Producer({
+
+        # Get SASL credentials from environment (for Confluent Cloud)
+        security_protocol = os.getenv("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")
+        sasl_mechanism = os.getenv("KAFKA_SASL_MECHANISM", "")
+        sasl_username = os.getenv("KAFKA_SASL_USERNAME", "")
+        sasl_password = os.getenv("KAFKA_SASL_PASSWORD", "")
+
+        # Base producer config
+        producer_config = {
             'bootstrap.servers': self.bootstrap_servers,
-            'client.id': f'product-service-{uuid.uuid4().hex[:8]}'
-        })
+            'client.id': 'product-service-producer',
+            'acks': 'all',
+        }
+
+        # Add SASL config if using SASL_SSL (Confluent Cloud)
+        if security_protocol == "SASL_SSL":
+            producer_config.update({
+                'security.protocol': security_protocol,
+                'sasl.mechanism': sasl_mechanism,
+                'sasl.username': sasl_username,
+                'sasl.password': sasl_password,
+            })
+            print(f"🔐 Using SASL_SSL authentication to {self.bootstrap_servers}")
+        else:
+            print(f"🔓 Using PLAINTEXT connection to {self.bootstrap_servers}")
+
+        # Initialize Kafka producer
+        self.producer = Producer(producer_config)
+
+        # Schema Registry config
+        sr_config = {'url': self.schema_registry_url}
         
-        # Load and cache Avro schema
-        self.serializer = self._load_serializer()
-    
-    def _load_serializer(self) -> AvroSerializer:
-        """Load Avro serializer for product events"""
-        # Avro schema for ProductCreatedEvent
-        schema_str = """
+        # Add Schema Registry auth if available
+        sr_api_key = os.getenv("SCHEMA_REGISTRY_API_KEY", "")
+        sr_api_secret = os.getenv("SCHEMA_REGISTRY_API_SECRET", "")
+        if sr_api_key and sr_api_secret:
+            sr_config['basic.auth.user.info'] = f"{sr_api_key}:{sr_api_secret}"
+            print(f"🔐 Using authenticated Schema Registry")
+
+        # Initialize Schema Registry client
+        try:
+            self.schema_registry_client = SchemaRegistryClient(sr_config)
+            print(f"✅ Connected to Schema Registry: {self.schema_registry_url}")
+        except Exception as e:
+            print(f"⚠️ Schema Registry connection failed: {e}")
+            self.schema_registry_client = None
+
+        # Product event schema
+        self.product_schema = """
         {
-          "type": "record",
-          "name": "ProductCreatedEvent",
-          "namespace": "com.platform.events",
-          "fields": [
-            {"name": "event_id", "type": "string"},
-            {"name": "product_id", "type": "string"},
-            {"name": "product_name", "type": "string"},
-            {"name": "product_type", "type": {"type": "enum", "name": "ProductType", "symbols": ["DATASET", "STREAM", "API", "REPORT", "ML_MODEL"]}},
-            {"name": "owner", "type": "string"},
-            {"name": "description", "type": ["null", "string"], "default": null},
-            {"name": "schema_version", "type": "string", "default": "1.0.0"},
-            {"name": "tags", "type": {"type": "array", "items": "string"}, "default": []},
-            {"name": "quality_score", "type": ["null", "double"], "default": null},
-            {"name": "kafka_topic", "type": ["null", "string"], "default": null},
-            {"name": "timestamp", "type": "long", "logicalType": "timestamp-millis"},
-            {"name": "created_by", "type": "string"},
-            {"name": "extra_metadata", "type": {"type": "map", "values": "string"}, "default": {}}
-          ]
+            "type": "record",
+            "name": "ProductEvent",
+            "namespace": "com.supplychain.products",
+            "fields": [
+                {"name": "event_type", "type": "string"},
+                {"name": "product_id", "type": "string"},
+                {"name": "name", "type": "string"},
+                {"name": "description", "type": ["null", "string"], "default": null},
+                {"name": "owner_team", "type": "string"},
+                {"name": "status", "type": "string"},
+                {"name": "kafka_topic", "type": ["null", "string"], "default": null},
+                {"name": "timestamp", "type": "string"}
+            ]
         }
         """
-        
-        return AvroSerializer(
-            self.schema_registry_client,
-            schema_str
-        )
-    
-    def produce_product_created(
-        self,
-        product: DataProduct,
-        callback: Optional[callable] = None
-    ):
+
+        # Initialize Avro serializer if Schema Registry available
+        if self.schema_registry_client:
+            try:
+                self.avro_serializer = AvroSerializer(
+                    self.schema_registry_client,
+                    self.product_schema
+                )
+            except Exception as e:
+                print(f"⚠️ Avro serializer initialization failed: {e}")
+                self.avro_serializer = None
+        else:
+            self.avro_serializer = None
+
+        self.topic = "product-events"
+
+    def _delivery_report(self, err, msg):
+        """Callback for message delivery reports"""
+        if err is not None:
+            print(f"❌ Delivery failed: {err}")
+        else:
+            print(f"✅ Delivered to {msg.topic()} [{msg.partition()}]")
+
+    def publish_product_event(self, event_type: str, product) -> bool:
         """
-        Produce a product created event
-        
+        Publish a product event
+
         Args:
-            product: Data product
-            callback: Optional delivery callback
+            event_type: Type of event (created, updated, deleted)
+            product: Product model instance
+
+        Returns:
+            True if published successfully
         """
-        # Create event
+        from datetime import datetime
+
         event = {
-            "event_id": str(uuid.uuid4()),
-            "product_id": product.product_id,
-            "product_name": product.product_name,
-            "product_type": product.product_type.value,
-            "owner": product.owner,
+            "event_type": event_type,
+            "product_id": product.id,
+            "name": product.name,
             "description": product.description,
-            "schema_version": product.schema_version,
-            "tags": product.tags or [],
-            "quality_score": product.quality_score,
+            "owner_team": product.owner_team,
+            "status": product.status,
             "kafka_topic": product.kafka_topic,
-            "timestamp": int(datetime.utcnow().timestamp() * 1000),
-            "created_by": product.created_by,
-            "extra_metadata": {k: str(v) for k, v in (product.extra_metadata or {}).items()}
+            "timestamp": datetime.utcnow().isoformat()
         }
-        
-        # Serialize
-        serialized_value = self.serializer(
-            event,
-            SerializationContext("product-events", MessageField.VALUE)
-        )
-        
-        # Produce
-        self.producer.produce(
-            topic="product-events",
-            key=product.product_id.encode('utf-8'),
-            value=serialized_value,
-            on_delivery=callback or self._default_callback
-        )
-        
-        # Trigger callbacks
-        self.producer.poll(0)
-    
-    def produce_product_updated(
-        self,
-        product: DataProduct,
-        callback: Optional[callable] = None
-    ):
-        """
-        Produce a product updated event
-        Similar to created but with updated fields
-        """
-        # For now, use same schema as created
-        # In production, you might have a separate UpdatedEvent schema
-        self.produce_product_created(product, callback)
-    
-    def flush(self, timeout: float = 10.0):
+
+        try:
+            if self.avro_serializer:
+                # Serialize with Avro
+                serialized = self.avro_serializer(
+                    event,
+                    SerializationContext(self.topic, MessageField.VALUE)
+                )
+                self.producer.produce(
+                    topic=self.topic,
+                    value=serialized,
+                    key=product.id.encode('utf-8'),
+                    callback=self._delivery_report
+                )
+            else:
+                # Fall back to JSON
+                self.producer.produce(
+                    topic=self.topic,
+                    value=json.dumps(event).encode('utf-8'),
+                    key=product.id.encode('utf-8'),
+                    callback=self._delivery_report
+                )
+
+            self.producer.poll(0)
+            return True
+
+        except Exception as e:
+            print(f"❌ Failed to publish event: {e}")
+            return False
+
+    def flush(self, timeout: float = 10.0) -> int:
         """Flush pending messages"""
         remaining = self.producer.flush(timeout)
         if remaining > 0:
-            print(f"⚠️  {remaining} messages still in queue after flush")
-    
-    @staticmethod
-    def _default_callback(err, msg):
-        """Default delivery callback"""
-        if err:
-            print(f"❌ Event delivery failed: {err}")
-        else:
-            print(f"✅ Event delivered to {msg.topic()} [{msg.partition()}] @ {msg.offset()}")
-    
+            print(f"⚠️ {remaining} messages still pending after flush")
+        return remaining
+
     def close(self):
         """Close producer"""
         self.flush()
+        print("👋 Producer closed")
 
 
 # Singleton instance

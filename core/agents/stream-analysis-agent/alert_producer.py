@@ -1,164 +1,122 @@
 """
-Alert Producer
-Produces quality alerts to Kafka
+Alert Producer for Stream Analysis
+Produces quality alerts to Kafka with SASL_SSL support
 """
 
 import os
-import uuid
+import json
 from datetime import datetime
 from typing import Dict, Any, Optional
 
 from confluent_kafka import Producer
-from confluent_kafka.serialization import SerializationContext, MessageField
-from confluent_kafka.schema_registry import SchemaRegistryClient
-from confluent_kafka.schema_registry.avro import AvroSerializer
 
 
 class AlertProducer:
     """
-    Produces quality alert events to Kafka
+    Produces data quality alerts to Kafka
+    Supports SASL_SSL authentication for Confluent Cloud
     """
-    
-    def __init__(
-        self,
-        bootstrap_servers: str = None,
-        schema_registry_url: str = None
-    ):
+
+    def __init__(self, bootstrap_servers: str = None):
         """
-        Initialize producer
-        
+        Initialize alert producer
+
         Args:
             bootstrap_servers: Kafka bootstrap servers
-            schema_registry_url: Schema Registry URL
         """
         self.bootstrap_servers = bootstrap_servers or os.getenv(
             "KAFKA_BOOTSTRAP_SERVERS",
             "localhost:19093"
         )
-        self.schema_registry_url = schema_registry_url or os.getenv(
-            "SCHEMA_REGISTRY_URL",
-            "http://localhost:18081"
-        )
-        
-        # Initialize Schema Registry client
-        self.schema_registry_client = SchemaRegistryClient({
-            'url': self.schema_registry_url
-        })
-        
-        # Initialize Kafka producer
-        self.producer = Producer({
+
+        # Get SASL credentials from environment (for Confluent Cloud)
+        security_protocol = os.getenv("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")
+        sasl_mechanism = os.getenv("KAFKA_SASL_MECHANISM", "")
+        sasl_username = os.getenv("KAFKA_SASL_USERNAME", "")
+        sasl_password = os.getenv("KAFKA_SASL_PASSWORD", "")
+
+        # Base producer config
+        producer_config = {
             'bootstrap.servers': self.bootstrap_servers,
-            'client.id': f'alert-producer-{uuid.uuid4().hex[:8]}'
-        })
-        
-        # Load serializer
-        self.serializer = self._load_serializer()
-    
-    def _load_serializer(self) -> AvroSerializer:
-        """Load Avro serializer for quality alerts"""
-        schema_str = """
-        {
-          "type": "record",
-          "name": "QualityAlertEvent",
-          "namespace": "com.platform.events",
-          "fields": [
-            {"name": "event_id", "type": "string"},
-            {"name": "alert_type", "type": {"type": "enum", "name": "AlertType", "symbols": ["ANOMALY", "MISSING_DATA", "SCHEMA_VIOLATION", "THRESHOLD_BREACH", "DATA_DRIFT"]}},
-            {"name": "severity", "type": {"type": "enum", "name": "Severity", "symbols": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]}},
-            {"name": "product_id", "type": "string"},
-            {"name": "topic_name", "type": ["null", "string"], "default": null},
-            {"name": "description", "type": "string"},
-            {"name": "ai_analysis", "type": ["null", "string"], "default": null},
-            {"name": "affected_records", "type": "int", "default": 0},
-            {"name": "sample_data", "type": ["null", "string"], "default": null},
-            {"name": "metrics", "type": {"type": "map", "values": "double"}, "default": {}},
-            {"name": "timestamp", "type": "long", "logicalType": "timestamp-millis"},
-            {"name": "detection_method", "type": "string", "default": "AI_AGENT"},
-            {"name": "metadata", "type": {"type": "map", "values": "string"}, "default": {}}
-          ]
+            'client.id': 'stream-analysis-alerts',
+            'acks': 'all',
         }
-        """
+
+        # Add SASL config if using SASL_SSL (Confluent Cloud)
+        if security_protocol == "SASL_SSL":
+            producer_config.update({
+                'security.protocol': security_protocol,
+                'sasl.mechanism': sasl_mechanism,
+                'sasl.username': sasl_username,
+                'sasl.password': sasl_password,
+            })
+            print(f"🔐 Alert producer using SASL_SSL authentication")
+        else:
+            print(f"🔓 Alert producer using PLAINTEXT connection")
+
+        self.producer = Producer(producer_config)
+        self.topic = "quality-alerts"
         
-        return AvroSerializer(
-            self.schema_registry_client,
-            schema_str
-        )
-    
-    def produce_alert(
-        self,
-        analysis: Dict[str, Any],
-        topic: str,
-        product_id: str = "UNKNOWN"
-    ):
-        """
-        Produce a quality alert based on analysis results
-        
-        Args:
-            analysis: Analysis results from StreamAnalyzer
-            topic: Source topic that was analyzed
-            product_id: Associated product ID
-        """
-        # Map analysis to alert type
-        alert_type = "ANOMALY"
-        if any("missing" in issue.lower() for issue in analysis.get("issues_found", [])):
-            alert_type = "MISSING_DATA"
-        elif any("schema" in issue.lower() for issue in analysis.get("issues_found", [])):
-            alert_type = "SCHEMA_VIOLATION"
-        
-        # Create alert event
-        event = {
-            "event_id": str(uuid.uuid4()),
-            "alert_type": alert_type,
-            "severity": analysis.get("severity", "MEDIUM"),
-            "product_id": product_id,
-            "topic_name": topic,
-            "description": analysis.get("summary", "Data quality issue detected"),
-            "ai_analysis": "\n".join(analysis.get("recommendations", [])),
-            "affected_records": analysis.get("analyzed_messages", 0),
-            "sample_data": None,
-            "metrics": {
-                "quality_score": float(analysis.get("quality_score", 0)),
-                "analyzed_messages": float(analysis.get("analyzed_messages", 0))
-            },
-            "timestamp": int(datetime.utcnow().timestamp() * 1000),
-            "detection_method": analysis.get("analysis_method", "AI_AGENT"),
-            "metadata": {
-                "source_topic": topic,
-                "issues_count": str(len(analysis.get("issues_found", [])))
-            }
-        }
-        
-        # Serialize
-        serialized_value = self.serializer(
-            event,
-            SerializationContext("quality-alerts", MessageField.VALUE)
-        )
-        
-        # Produce
-        self.producer.produce(
-            topic="quality-alerts",
-            key=product_id.encode('utf-8'),
-            value=serialized_value,
-            on_delivery=self._delivery_callback
-        )
-        
-        # Trigger callbacks
-        self.producer.poll(0)
-    
-    def flush(self, timeout: float = 10.0):
-        """Flush pending messages"""
-        remaining = self.producer.flush(timeout)
-        if remaining > 0:
-            print(f"⚠️  {remaining} alerts still in queue")
-    
-    @staticmethod
-    def _delivery_callback(err, msg):
-        """Delivery callback"""
-        if err:
+        print(f"✅ Alert producer initialized, topic: {self.topic}")
+
+    def _delivery_report(self, err, msg):
+        """Callback for message delivery reports"""
+        if err is not None:
             print(f"❌ Alert delivery failed: {err}")
         else:
-            print(f"✅ Alert delivered to {msg.topic()} [{msg.partition()}] @ {msg.offset()}")
-    
+            print(f"✅ Alert delivered to {msg.topic()} [{msg.partition()}]")
+
+    def produce_alert(
+        self,
+        product_id: str,
+        analysis: Dict[str, Any],
+        topic: str
+    ) -> bool:
+        """
+        Produce a quality alert
+
+        Args:
+            product_id: Data product ID
+            analysis: Analysis results from StreamAnalyzer
+            topic: Source topic that triggered the alert
+
+        Returns:
+            True if alert was produced successfully
+        """
+        alert = {
+            "alert_id": f"ALERT-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}",
+            "timestamp": datetime.utcnow().isoformat(),
+            "product_id": product_id,
+            "source_topic": topic,
+            "severity": analysis.get("severity", "info"),
+            "quality_score": analysis.get("quality_score", 0),
+            "issues_found": analysis.get("issues_found", []),
+            "recommendations": analysis.get("recommendations", []),
+            "sample_size": analysis.get("sample_size", 0),
+            "analysis_type": "stream_quality"
+        }
+
+        try:
+            self.producer.produce(
+                topic=self.topic,
+                key=product_id.encode('utf-8'),
+                value=json.dumps(alert).encode('utf-8'),
+                callback=self._delivery_report
+            )
+            self.producer.poll(0)
+            
+            print(f"🚨 Alert produced: {alert['alert_id']} - {alert['severity']}")
+            return True
+
+        except Exception as e:
+            print(f"❌ Failed to produce alert: {e}")
+            return False
+
+    def flush(self, timeout: float = 10.0) -> int:
+        """Flush pending alerts"""
+        return self.producer.flush(timeout)
+
     def close(self):
         """Close producer"""
         self.flush()
+        print("👋 Alert producer closed")

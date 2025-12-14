@@ -1,6 +1,6 @@
 """
 Kafka Consumer for Stream Analysis
-Consumes events and triggers analysis
+Consumes events and triggers analysis with SASL_SSL support
 """
 
 import os
@@ -16,8 +16,9 @@ from confluent_kafka.schema_registry.avro import AvroDeserializer
 class StreamConsumer:
     """
     Consumes messages from Kafka topics with Avro/JSON deserialization
+    Supports SASL_SSL authentication for Confluent Cloud
     """
-    
+
     def __init__(
         self,
         group_id: str = "stream-analyzer",
@@ -27,7 +28,7 @@ class StreamConsumer:
     ):
         """
         Initialize consumer
-        
+
         Args:
             group_id: Consumer group ID
             bootstrap_servers: Kafka bootstrap servers
@@ -43,156 +44,166 @@ class StreamConsumer:
             "SCHEMA_REGISTRY_URL",
             "http://localhost:18081"
         )
-        
-        # Initialize Schema Registry client
-        try:
-            self.schema_registry_client = SchemaRegistryClient({
-                'url': self.schema_registry_url
-            })
-            self.deserializer = AvroDeserializer(self.schema_registry_client)
-            print(f"✅ Schema Registry connected: {self.schema_registry_url}")
-        except Exception as e:
-            print(f"⚠️  Schema Registry unavailable: {e}")
-            self.schema_registry_client = None
-            self.deserializer = None
-        
-        # Initialize Kafka consumer
-        self.consumer = Consumer({
+
+        # Get SASL credentials from environment (for Confluent Cloud)
+        security_protocol = os.getenv("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")
+        sasl_mechanism = os.getenv("KAFKA_SASL_MECHANISM", "")
+        sasl_username = os.getenv("KAFKA_SASL_USERNAME", "")
+        sasl_password = os.getenv("KAFKA_SASL_PASSWORD", "")
+
+        # Base consumer config
+        consumer_config = {
             'bootstrap.servers': self.bootstrap_servers,
             'group.id': group_id,
             'auto.offset.reset': auto_offset_reset,
-            'enable.auto.commit': True,
-            'client.id': f'stream-analyzer-{uuid.uuid4().hex[:8]}',
-            'max.poll.interval.ms': 600000,  # 10 min - allows time for AI analysis
-            'session.timeout.ms': 60000,     # 1 min - detect true failures faster
-            'heartbeat.interval.ms': 3000    # 3 sec - keep connection alive
-        })
+            'enable.auto.commit': False,
+        }
+
+        # Add SASL config if using SASL_SSL (Confluent Cloud)
+        if security_protocol == "SASL_SSL":
+            consumer_config.update({
+                'security.protocol': security_protocol,
+                'sasl.mechanism': sasl_mechanism,
+                'sasl.username': sasl_username,
+                'sasl.password': sasl_password,
+            })
+            print(f"🔐 Consumer using SASL_SSL authentication to {self.bootstrap_servers}")
+        else:
+            print(f"🔓 Consumer using PLAINTEXT connection to {self.bootstrap_servers}")
+
+        # Initialize consumer
+        self.consumer = Consumer(consumer_config)
+        print(f"✅ Consumer initialized with group: {group_id}")
+
+        # Schema Registry config
+        sr_config = {'url': self.schema_registry_url}
         
-        self.running = False
-    
+        # Add Schema Registry auth if available
+        sr_api_key = os.getenv("SCHEMA_REGISTRY_API_KEY", "")
+        sr_api_secret = os.getenv("SCHEMA_REGISTRY_API_SECRET", "")
+        if sr_api_key and sr_api_secret:
+            sr_config['basic.auth.user.info'] = f"{sr_api_key}:{sr_api_secret}"
+            print(f"🔐 Using authenticated Schema Registry")
+
+        # Initialize Schema Registry client
+        try:
+            self.schema_registry_client = SchemaRegistryClient(sr_config)
+            print(f"✅ Connected to Schema Registry: {self.schema_registry_url}")
+        except Exception as e:
+            print(f"⚠️ Schema Registry connection failed: {e}")
+            self.schema_registry_client = None
+
+        # Cache for deserializers
+        self.deserializers = {}
+
+        # Batch processing
+        self.batch_size = 100
+        self.batch_timeout_ms = 5000
+
     def subscribe(self, topics: List[str]):
         """Subscribe to topics"""
         self.consumer.subscribe(topics)
-        print(f"📥 Subscribed to topics: {', '.join(topics)}")
-    
+        print(f"📥 Subscribed to: {topics}")
+
+    def _deserialize_message(self, msg) -> Optional[dict]:
+        """
+        Deserialize message, trying Avro first then JSON
+        """
+        try:
+            value = msg.value()
+            if value is None:
+                return None
+
+            # Try JSON first (simpler)
+            try:
+                return json.loads(value.decode('utf-8'))
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                pass
+
+            # Try Avro if Schema Registry available
+            if self.schema_registry_client:
+                try:
+                    topic = msg.topic()
+                    if topic not in self.deserializers:
+                        # Get schema from registry
+                        schema = self.schema_registry_client.get_latest_version(f"{topic}-value")
+                        self.deserializers[topic] = AvroDeserializer(
+                            self.schema_registry_client,
+                            schema.schema.schema_str
+                        )
+                    
+                    return self.deserializers[topic](
+                        value,
+                        SerializationContext(topic, MessageField.VALUE)
+                    )
+                except Exception as e:
+                    print(f"⚠️ Avro deserialization failed: {e}")
+
+            # Return raw bytes as fallback
+            return {"_raw": value.hex(), "_length": len(value)}
+
+        except Exception as e:
+            print(f"❌ Deserialization error: {e}")
+            return None
+
     def consume_batch(
         self,
-        batch_size: int = 100,
-        timeout: float = 5.0
-    ) -> List[tuple]:
+        callback: Callable[[str, List[dict]], None],
+        timeout_seconds: float = 5.0
+    ) -> int:
         """
-        Consume a batch of messages
-        
+        Consume a batch of messages and call callback
+
         Args:
-            batch_size: Maximum messages to consume
-            timeout: Timeout for each poll (seconds)
-            
+            callback: Function(topic, messages) to call with batch
+            timeout_seconds: Max time to wait for batch
+
         Returns:
-            List of (topic, key, value, timestamp) tuples
+            Number of messages consumed
         """
-        messages = []
-        
-        for _ in range(batch_size):
-            msg = self.consumer.poll(timeout=timeout)
-            
-            if msg is None:
-                # No more messages
+        messages_by_topic = {}
+        start_time = __import__('time').time()
+        count = 0
+
+        while count < self.batch_size:
+            elapsed = __import__('time').time() - start_time
+            if elapsed >= timeout_seconds:
                 break
-            
+
+            remaining = timeout_seconds - elapsed
+            msg = self.consumer.poll(timeout=min(1.0, remaining))
+
+            if msg is None:
+                continue
+
             if msg.error():
                 if msg.error().code() == KafkaError._PARTITION_EOF:
                     continue
                 else:
                     print(f"❌ Consumer error: {msg.error()}")
                     continue
-            
-            try:
-                # Try Avro deserialization first (if available)
-                if self.deserializer:
-                    try:
-                        value = self.deserializer(
-                            msg.value(),
-                            SerializationContext(msg.topic(), MessageField.VALUE)
-                        )
-                    except Exception:
-                        # Fallback to JSON
-                        value = json.loads(msg.value().decode('utf-8'))
-                else:
-                    # No Avro deserializer, use JSON
-                    value = json.loads(msg.value().decode('utf-8'))
-                
-                # Get key
-                key = msg.key().decode('utf-8') if msg.key() else None
-                
-                messages.append((
-                    msg.topic(),
-                    key,
-                    value,
-                    msg.timestamp()[1] if msg.timestamp()[0] else None
-                ))
-                
-            except Exception as e:
-                print(f"⚠️  Failed to deserialize message: {e}")
-                continue
-        
-        return messages
-    
-    def start_consuming(
-        self,
-        on_batch: Callable[[str, List[dict]], None],
-        batch_size: int = 100,
-        batch_interval: float = 5.0
-    ):
-        """
-        Start consuming messages and call handler on batches
-        
-        Args:
-            on_batch: Callback function(topic, messages)
-            batch_size: Messages per batch
-            batch_interval: Seconds to wait for batch
-        """
-        self.running = True
-        print(f"🎧 Starting consumer (batch_size={batch_size}, interval={batch_interval}s)...")
-        
-        try:
-            # Group messages by topic
-            topic_batches = {}
-            
-            while self.running:
-                # Consume batch
-                messages = self.consume_batch(batch_size, batch_interval)
-                
-                if not messages:
-                    # Process any pending batches
-                    for topic, batch in topic_batches.items():
-                        if batch:
-                            on_batch(topic, batch)
-                    topic_batches.clear()
-                    continue
-                
-                # Group by topic
-                for topic, key, value, timestamp in messages:
-                    if topic not in topic_batches:
-                        topic_batches[topic] = []
-                    topic_batches[topic].append(value)
-                
-                # Process full batches
-                for topic, batch in list(topic_batches.items()):
-                    if len(batch) >= batch_size:
-                        on_batch(topic, batch)
-                        topic_batches[topic] = []
-                
-        except KeyboardInterrupt:
-            print("\n⚠️  Consumer interrupted by user")
-        except Exception as e:
-            print(f"❌ Consumer error: {e}")
-            raise
-        finally:
-            self.stop()
-    
-    def stop(self):
-        """Stop consuming"""
-        self.running = False
-        if hasattr(self, 'consumer'):
-            self.consumer.close()
-            print("👋 Consumer closed")
+
+            # Deserialize
+            data = self._deserialize_message(msg)
+            if data:
+                topic = msg.topic()
+                if topic not in messages_by_topic:
+                    messages_by_topic[topic] = []
+                messages_by_topic[topic].append(data)
+                count += 1
+
+        # Call callback for each topic batch
+        for topic, messages in messages_by_topic.items():
+            if messages:
+                callback(topic, messages)
+
+        # Commit offsets
+        if count > 0:
+            self.consumer.commit(asynchronous=False)
+
+        return count
+
+    def close(self):
+        """Close consumer"""
+        self.consumer.close()
+        print("👋 Consumer closed")

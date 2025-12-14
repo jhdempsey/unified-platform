@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies (added fastavro)
+# Install dependencies
 RUN pip install --no-cache-dir \
     fastapi==0.104.1 \
     uvicorn[standard]==0.24.0 \
@@ -14,13 +14,15 @@ RUN pip install --no-cache-dir \
     requests==2.31.0 \
     python-dotenv==1.0.0
 
-# Copy shared config
+# Copy shared config (build context is project root)
 COPY core/shared /app/shared
 
 # Copy service code
 COPY templates/supply-chain/services/product-service/*.py /app/
 
 ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
 EXPOSE 8001
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
