@@ -1,59 +1,61 @@
+# Multi-stage Dockerfile for Backstage on Cloud Run
+# Based on Backstage's official Dockerfile
+
 # Stage 1: Build
 FROM node:20-bookworm-slim AS build
 
+ENV PYTHON=/usr/bin/python3
+
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    g++ \
-    make \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 g++ build-essential libsqlite3-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy package files
-COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn ./.yarn
-COPY packages/app/package.json ./packages/app/
-COPY packages/backend/package.json ./packages/backend/
+# Copy everything
+COPY . .
 
 # Install dependencies
 RUN yarn install --immutable
 
-# Copy source
-COPY . .
-
-# Build
-RUN yarn tsc
+# Build backend (creates bundle.tar.gz and skeleton.tar.gz)
 RUN yarn build:backend
 
 # Stage 2: Production
 FROM node:20-bookworm-slim
 
+ENV PYTHON=/usr/bin/python3
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--no-node-snapshot"
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 g++ build-essential libsqlite3-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+USER node
 WORKDIR /app
 
-# Install production dependencies only
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    && rm -rf /var/lib/apt/lists/*
+# Copy yarn files
+COPY --chown=node:node .yarn ./.yarn
+COPY --chown=node:node .yarnrc.yml ./
+COPY --chown=node:node backstage.json ./
 
-# Copy built backend
-COPY --from=build /app/packages/backend/dist ./packages/backend/dist
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/package.json ./
-COPY --from=build /app/yarn.lock ./
-COPY --from=build /app/.yarnrc.yml ./
-COPY --from=build /app/.yarn ./.yarn
+# Copy skeleton and install production deps
+COPY --from=build --chown=node:node /app/yarn.lock /app/package.json ./
+COPY --from=build --chown=node:node /app/packages/backend/dist/skeleton.tar.gz ./
+RUN tar xzf skeleton.tar.gz && rm skeleton.tar.gz
 
-# Copy app-config
-COPY app-config.yaml app-config.production.yaml ./
+RUN yarn workspaces focus --all --production
 
-# Copy catalog files
-COPY examples ./examples
+# Copy catalog examples
+COPY --chown=node:node examples ./examples
 
-ENV NODE_ENV=production
+# Copy bundle and configs
+COPY --from=build --chown=node:node /app/packages/backend/dist/bundle.tar.gz ./
+COPY --chown=node:node app-config.yaml app-config.production.yaml ./
+RUN tar xzf bundle.tar.gz && rm bundle.tar.gz
+
 ENV PORT=8080
-
 EXPOSE 8080
 
-# Use production config
-CMD ["node", "packages/backend/dist/index.js", "--config", "app-config.yaml", "--config", "app-config.production.yaml"]
+CMD ["node", "packages/backend", "--config", "app-config.yaml", "--config", "app-config.production.yaml"]
