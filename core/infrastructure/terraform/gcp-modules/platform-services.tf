@@ -178,6 +178,12 @@ resource "google_cloud_run_v2_service" "discovery_agent" {
         name  = "ENVIRONMENT"
         value = "production"
       }
+      
+      # Service URLs for inter-service communication
+      env {
+        name  = "PRODUCT_SERVICE_URL"
+        value = "https://product-service-${data.google_project.project.number}.${var.region}.run.app"
+      }
     }
     
     scaling {
@@ -198,6 +204,11 @@ resource "google_cloud_run_v2_service" "discovery_agent" {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
   }
+}
+
+# Data source for project number (needed for Cloud Run URLs)
+data "google_project" "project" {
+  project_id = var.project_id
 }
 
 resource "google_cloud_run_v2_service_iam_member" "discovery_agent_public" {
@@ -412,6 +423,12 @@ resource "google_cloud_run_v2_service" "stream_analysis" {
         name  = "ENVIRONMENT"
         value = "production"
       }
+      
+      # Topics to monitor
+      env {
+        name  = "KAFKA_TOPICS"
+        value = "supply-chain.orders,supply-chain.predictions,supply-chain.alerts,order-events,product-events,supplier-events"
+      }
     }
     
     scaling {
@@ -436,6 +453,74 @@ resource "google_cloud_run_v2_service" "stream_analysis" {
 
 resource "google_cloud_run_v2_service_iam_member" "stream_analysis_public" {
   name     = google_cloud_run_v2_service.stream_analysis.name
+  location = var.region
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+# =============================================================================
+# SERVICE: ml-consumer
+# ML predictions consumer (FastAPI on port 8080)
+# =============================================================================
+
+resource "google_cloud_run_v2_service" "ml_consumer" {
+  name     = "ml-consumer"
+  location = var.region
+  
+  deletion_protection = false
+  
+  template {
+    containers {
+      image = "${local.image_registry}/ml-consumer:latest"
+      
+      ports {
+        container_port = 8080
+      }
+      
+      resources {
+        limits = {
+          cpu    = "2"
+          memory = "1Gi"
+        }
+      }
+      
+      # Kafka configuration
+      dynamic "env" {
+        for_each = local.kafka_env
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      
+      env {
+        name  = "ENVIRONMENT"
+        value = "production"
+      }
+    }
+    
+    scaling {
+      min_instance_count = 1  # Keep running for continuous consumption
+      max_instance_count = 5
+    }
+    
+    vpc_access {
+      network_interfaces {
+        network    = google_compute_network.vpc.name
+        subnetwork = google_compute_subnetwork.subnet.name
+      }
+      egress = "ALL_TRAFFIC"
+    }
+  }
+  
+  traffic {
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    percent = 100
+  }
+}
+
+resource "google_cloud_run_v2_service_iam_member" "ml_consumer_public" {
+  name     = google_cloud_run_v2_service.ml_consumer.name
   location = var.region
   role     = "roles/run.invoker"
   member   = "allUsers"
@@ -468,4 +553,9 @@ output "event_producer_url" {
 output "stream_analysis_url" {
   description = "Stream Analysis URL"
   value       = google_cloud_run_v2_service.stream_analysis.uri
+}
+
+output "ml_consumer_url" {
+  description = "ML Consumer URL"
+  value       = google_cloud_run_v2_service.ml_consumer.uri
 }

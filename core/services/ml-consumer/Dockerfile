@@ -2,20 +2,20 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy requirements and install (using pure Python Kafka client)
-COPY core/services/ml-consumer/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies
+RUN pip install --no-cache-dir \
+    fastapi==0.104.1 \
+    uvicorn[standard]==0.24.0 \
+    confluent-kafka==2.3.0 \
+    python-dotenv==1.0.0 \
+    pydantic==2.5.0
 
-# Copy application code
-COPY core/services/ml-consumer/*.py ./
+# Copy main application
+COPY main.py ./
 
-# Add vertical models to path
-ENV PYTHONPATH=/app:/app/vertical-models
-ENV PATH=/root/.local/bin:$PATH
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
 
-EXPOSE 8000
+EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
-
-CMD ["python", "ml_consumer_production.py"]
+CMD ["python", "main.py"]

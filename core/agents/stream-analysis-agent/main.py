@@ -44,6 +44,23 @@ _consumer_thread: Optional[threading.Thread] = None
 _running = False
 
 
+def get_topics_from_env() -> List[str]:
+    """Get topics to monitor from environment variable or use defaults"""
+    topics_env = os.getenv("KAFKA_TOPICS", "")
+    if topics_env:
+        return [t.strip() for t in topics_env.split(",") if t.strip()]
+    
+    # Default topics - aligned with Confluent Cloud topics
+    return [
+        "supply-chain.orders",
+        "supply-chain.predictions",
+        "supply-chain.alerts",
+        "order-events",
+        "product-events",
+        "supplier-events"
+    ]
+
+
 class StreamAnalysisAgent:
     """
     Main agent that coordinates:
@@ -60,16 +77,13 @@ class StreamAnalysisAgent:
         self.analyzer = StreamAnalyzer()
         self.consumer = StreamConsumer(
             group_id="stream-analysis-agent",
-            auto_offset_reset="latest"  # Only analyze new messages
+            auto_offset_reset="earliest"  # Start from beginning to catch existing messages
         )
         self.alert_producer = AlertProducer()
 
-        # Topics to monitor
-        self.topics = [
-            "supplier-events",
-            "order-events",
-            "product-events"
-        ]
+        # Topics to monitor - from environment or defaults
+        self.topics = get_topics_from_env()
+        print(f"📋 Topics to monitor: {self.topics}")
 
         # Stats
         self.stats = {
@@ -111,7 +125,7 @@ class StreamAnalysisAgent:
                 print(f"   🚨 Alert triggered!")
 
                 # Produce alert
-                product_id = f"PROD-{topic.upper()}"
+                product_id = f"PROD-{topic.upper().replace('.', '-')}"
                 self.alert_producer.produce_alert(
                     product_id=product_id,
                     analysis=analysis,
