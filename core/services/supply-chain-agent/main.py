@@ -134,14 +134,14 @@ TOOLS = [
 async def execute_tool(tool_name: str, tool_input: dict) -> str:
     """Execute a tool and return the result"""
     
-    async with httpx.AsyncClient(timeout=30.0) as http_client:
+    async with httpx.AsyncClient(timeout=90.0) as http_client:
         try:
             if tool_name == "search_documents":
                 response = await http_client.post(
                     f"{RAG_SERVICE_URL}/query",
                     json={"question": tool_input["question"], "top_k": 3}
                 )
-                if response.status_code == 200:
+                if response.status_code in (200, 201):
                     data = response.json()
                     return json.dumps({
                         "answer": data.get("answer", "No answer found"),
@@ -155,7 +155,7 @@ async def execute_tool(tool_name: str, tool_input: dict) -> str:
                     f"{PRODUCT_SERVICE_URL}/products",
                     params={"limit": limit}
                 )
-                if response.status_code == 200:
+                if response.status_code in (200, 201):
                     return json.dumps(response.json())
                 return f"Product service error: {response.status_code}"
 
@@ -163,25 +163,25 @@ async def execute_tool(tool_name: str, tool_input: dict) -> str:
                 response = await http_client.get(
                     f"{PRODUCT_SERVICE_URL}/products/{tool_input['product_id']}"
                 )
-                if response.status_code == 200:
+                if response.status_code in (200, 201):
                     return json.dumps(response.json())
                 return f"Product not found: {tool_input['product_id']}"
 
             elif tool_name == "discover_kafka_topics":
                 response = await http_client.get(f"{STREAM_ANALYSIS_URL}/stats")
-                if response.status_code == 200:
+                if response.status_code in (200, 201):
                     return json.dumps(response.json())
                 return f"Discovery agent error: {response.status_code}"
 
             elif tool_name == "get_stream_stats":
                 response = await http_client.get(f"{STREAM_ANALYSIS_URL}/stats")
-                if response.status_code == 200:
+                if response.status_code in (200, 201):
                     return json.dumps(response.json())
                 return f"Stream analysis error: {response.status_code}"
 
             elif tool_name == "get_ml_predictions_stats":
                 response = await http_client.get(f"{ML_CONSUMER_URL}/health")
-                if response.status_code == 200:
+                if response.status_code in (200, 201):
                     return json.dumps(response.json())
                 return f"ML consumer error: {response.status_code}"
 
@@ -195,7 +195,7 @@ async def execute_tool(tool_name: str, tool_input: dict) -> str:
                         "category": tool_input.get("category", "General")
                     }
                 )
-                if response.status_code == 200:
+                if response.status_code in (200, 201):
                     return json.dumps(response.json())
                 return f"Product generator error: {response.status_code}"
 

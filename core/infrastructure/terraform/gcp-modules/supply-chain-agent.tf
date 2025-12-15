@@ -72,13 +72,6 @@ resource "google_cloud_run_v2_service" "supply_chain_agent" {
       max_instance_count = 5
     }
     
-    vpc_access {
-      network_interfaces {
-        network    = google_compute_network.vpc.name
-        subnetwork = google_compute_subnetwork.subnet.name
-      }
-      egress = "ALL_TRAFFIC"
-    }
   }
   
   traffic {
