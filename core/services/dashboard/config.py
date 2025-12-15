@@ -1,65 +1,149 @@
 """
-Dashboard configuration - Environment-aware service URLs
-Separates internal (container-to-container) and external (browser) URLs
+Dashboard Configuration
+Centralized configuration for Streamlit dashboard
 """
 import os
 
-# Determine environment
-ENVIRONMENT = os.getenv("ENVIRONMENT", "dev")
-VERTICAL = os.getenv("VERTICAL", "supply-chain")
+# Environment detection
+ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
-# ============================================================================
-# INTERNAL URLs (for server-side API calls from dashboard container)
-# ============================================================================
-KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-SCHEMA_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "http://schema-registry:8081")
-MLFLOW_TRACKING_URI = "http://mlflow:5000"  # Internal container port
-MODEL_INFERENCE_URL = "http://model-inference:8001"
-RAG_SERVICE_URL = "http://rag-service:8005"
-PROMETHEUS_URL = "http://prometheus:9090"  # Internal container port
-DISCOVERY_AGENT_URL = "http://discovery-agent:8004"
+# =============================================================================
+# Cloud Run Service URLs
+# =============================================================================
 
-# ============================================================================
-# EXTERNAL URLs (for browser links and client-side calls)
-# ============================================================================
+# Base URL pattern for Cloud Run services
+CLOUD_RUN_BASE = "https://{service}-742330383495.us-central1.run.app"
+
+# Service URLs
+DISCOVERY_AGENT_URL = os.getenv(
+    "DISCOVERY_AGENT_URL",
+    CLOUD_RUN_BASE.format(service="discovery-agent")
+)
+
+AI_GATEWAY_URL = os.getenv(
+    "AI_GATEWAY_URL",
+    CLOUD_RUN_BASE.format(service="ai-gateway")
+)
+
+RAG_SERVICE_URL = os.getenv(
+    "RAG_SERVICE_URL",
+    CLOUD_RUN_BASE.format(service="rag-service")
+)
+
+PRODUCT_SERVICE_URL = os.getenv(
+    "PRODUCT_SERVICE_URL",
+    CLOUD_RUN_BASE.format(service="product-service")
+)
+
+PRODUCT_GENERATOR_URL = os.getenv(
+    "PRODUCT_GENERATOR_URL",
+    CLOUD_RUN_BASE.format(service="product-generator")
+)
+
+ML_CONSUMER_URL = os.getenv(
+    "ML_CONSUMER_URL",
+    CLOUD_RUN_BASE.format(service="ml-consumer")
+)
+
+STREAM_ANALYSIS_URL = os.getenv(
+    "STREAM_ANALYSIS_URL",
+    CLOUD_RUN_BASE.format(service="stream-analysis")
+)
+
+EVENT_PRODUCER_URL = os.getenv(
+    "EVENT_PRODUCER_URL",
+    CLOUD_RUN_BASE.format(service="event-producer")
+)
+
+MCP_SERVER_URL = os.getenv(
+    "MCP_SERVER_URL",
+    CLOUD_RUN_BASE.format(service="mcp-server")
+)
+
+BACKSTAGE_URL = os.getenv(
+    "BACKSTAGE_URL",
+    CLOUD_RUN_BASE.format(service="backstage")
+)
+
+# MLflow - Not currently deployed as Cloud Run service
+# Set to empty to indicate unavailable
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "")
+MLFLOW_UI_URL = os.getenv("MLFLOW_UI_URL", "")
+
+# Kafka UI - Using Confluent Cloud Console
+KAFKA_UI_URL = "https://confluent.cloud"
+
+# Prometheus - Not deployed (using Cloud Monitoring instead)
+PROMETHEUS_UI_URL = ""
+
+# =============================================================================
+# UI URLs for browser links
+# =============================================================================
+
 if ENVIRONMENT == "dev":
-    # Local Docker - use localhost with host-mapped ports
+    # Local development - use localhost
     MLFLOW_UI_URL = "http://localhost:5001"
-    MODEL_INFERENCE_UI_URL = "http://localhost:8001"
-    RAG_SERVICE_UI_URL = "http://localhost:8005"
-    PROMETHEUS_UI_URL = "http://localhost:9091"
     DISCOVERY_AGENT_UI_URL = "http://localhost:8004"
     AI_GATEWAY_UI_URL = "http://localhost:8002"
+    RAG_SERVICE_UI_URL = "http://localhost:8005"
+    PRODUCT_SERVICE_UI_URL = "http://localhost:8001"
     KAFKA_UI_URL = "http://localhost:8080"
 else:
-    # GCP/Production - use external URLs from environment
-    MLFLOW_UI_URL = os.getenv("MLFLOW_UI_URL", MLFLOW_TRACKING_URI)
-    MODEL_INFERENCE_UI_URL = os.getenv("MODEL_INFERENCE_UI_URL", MODEL_INFERENCE_URL)
-    RAG_SERVICE_UI_URL = os.getenv("RAG_SERVICE_UI_URL", RAG_SERVICE_URL)
-    PROMETHEUS_UI_URL = os.getenv("PROMETHEUS_UI_URL", PROMETHEUS_URL)
-    DISCOVERY_AGENT_UI_URL = os.getenv("DISCOVERY_AGENT_UI_URL", DISCOVERY_AGENT_URL)
-    AI_GATEWAY_UI_URL = os.getenv("AI_GATEWAY_UI_URL", "http://ai-gateway:8002")
-    KAFKA_UI_URL = os.getenv("KAFKA_UI_URL", "http://kafka-ui:8080")
+    # Production - use Cloud Run URLs
+    MLFLOW_UI_URL = MLFLOW_UI_URL or ""  # Not available
+    DISCOVERY_AGENT_UI_URL = DISCOVERY_AGENT_URL
+    AI_GATEWAY_UI_URL = AI_GATEWAY_URL
+    RAG_SERVICE_UI_URL = RAG_SERVICE_URL
+    PRODUCT_SERVICE_UI_URL = PRODUCT_SERVICE_URL
 
-# Connection settings
-REQUEST_TIMEOUT = 10
-KAFKA_CONSUMER_TIMEOUT = 2000
 
-def show_config():
-    """Return configuration for debugging"""
+# =============================================================================
+# API Endpoints for internal calls
+# =============================================================================
+
+def get_service_endpoints():
+    """Get all service endpoints for health checks and API calls"""
     return {
-        "environment": ENVIRONMENT,
-        "vertical": VERTICAL,
-        "internal_urls": {
-            "mlflow": MLFLOW_TRACKING_URI,
-            "model_inference": MODEL_INFERENCE_URL,
-            "rag": RAG_SERVICE_URL,
-            "prometheus": PROMETHEUS_URL,
+        "internal": {
+            "discovery_agent": DISCOVERY_AGENT_URL,
+            "ai_gateway": AI_GATEWAY_URL,
+            "rag_service": RAG_SERVICE_URL,
+            "product_service": PRODUCT_SERVICE_URL,
+            "product_generator": PRODUCT_GENERATOR_URL,
+            "ml_consumer": ML_CONSUMER_URL,
+            "stream_analysis": STREAM_ANALYSIS_URL,
+            "event_producer": EVENT_PRODUCER_URL,
+            "mcp_server": MCP_SERVER_URL,
         },
-        "external_urls": {
-            "mlflow_ui": MLFLOW_UI_URL,
-            "model_inference_ui": MODEL_INFERENCE_UI_URL,
-            "rag_ui": RAG_SERVICE_UI_URL,
-            "prometheus_ui": PROMETHEUS_UI_URL,
+        "ui": {
+            "discovery_agent": DISCOVERY_AGENT_UI_URL,
+            "ai_gateway": AI_GATEWAY_UI_URL,
+            "rag_service": RAG_SERVICE_UI_URL,
+            "product_service": PRODUCT_SERVICE_UI_URL,
+            "kafka": KAFKA_UI_URL,
+            "backstage": BACKSTAGE_URL,
+            "mlflow": MLFLOW_UI_URL,
         }
     }
+
+
+# =============================================================================
+# Feature Flags
+# =============================================================================
+
+FEATURES = {
+    "mlflow_enabled": bool(MLFLOW_TRACKING_URI),
+    "prometheus_enabled": bool(PROMETHEUS_UI_URL),
+    "kafka_metrics_enabled": True,
+}
+
+
+if __name__ == "__main__":
+    print(f"Environment: {ENVIRONMENT}")
+    print(f"\nService Endpoints:")
+    endpoints = get_service_endpoints()
+    for category, services in endpoints.items():
+        print(f"\n  {category}:")
+        for name, url in services.items():
+            status = "✅" if url else "❌"
+            print(f"    {status} {name}: {url or 'Not configured'}")

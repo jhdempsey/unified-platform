@@ -70,7 +70,7 @@ class SupplyChainRFModel:
             return "http://mlflow.default.svc.cluster.local:5000"
 
         # 3. Fallback to public IP for local development
-        return "http://34.135.31.127:5000"
+        return "os.getenv("MLFLOW_TRACKING_URI", "")"
 
     def generate_training_data(self, n_samples: int = 1000) -> pd.DataFrame:
         """Generate synthetic supply chain data for training"""

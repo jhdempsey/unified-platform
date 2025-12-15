@@ -86,7 +86,7 @@ resource "google_artifact_registry_repository" "ai_platform_repo" {
   format        = "DOCKER"
 }
 
-# Dashboard Service - Updated with Cloud Run URLs
+# Dashboard Service
 resource "google_cloud_run_service" "dashboard" {
   name     = "dashboard"
   location = var.region
@@ -97,92 +97,24 @@ resource "google_cloud_run_service" "dashboard" {
       containers {
         image = "${var.region}-docker.pkg.dev/${var.project_id}/cloud-run-source-deploy/dashboard:latest"
 
-        # Cloud Run service URLs
         env {
-          name  = "ENVIRONMENT"
-          value = "production"
-        }
-        
-        env {
-          name  = "RAG_SERVICE_URL"
+          name  = "RAG_URL"
           value = google_cloud_run_service.rag_service.status[0].url
         }
-        
+
         env {
-          name  = "AI_GATEWAY_URL"
-          value = "https://ai-gateway-${data.google_project.project.number}.${var.region}.run.app"
+          name  = "MLFLOW_URL"
+          value = "http://mlflow-placeholder:5000"
         }
-        
-        env {
-          name  = "AI_GATEWAY_UI_URL"
-          value = "https://ai-gateway-${data.google_project.project.number}.${var.region}.run.app"
-        }
-        
-        env {
-          name  = "DISCOVERY_AGENT_URL"
-          value = "https://discovery-agent-${data.google_project.project.number}.${var.region}.run.app"
-        }
-        
-        env {
-          name  = "DISCOVERY_AGENT_UI_URL"
-          value = "https://discovery-agent-${data.google_project.project.number}.${var.region}.run.app"
-        }
-        
-        env {
-          name  = "PRODUCT_SERVICE_URL"
-          value = "https://product-service-${data.google_project.project.number}.${var.region}.run.app"
-        }
-        
-        env {
-          name  = "ML_CONSUMER_URL"
-          value = "https://ml-consumer-${data.google_project.project.number}.${var.region}.run.app"
-        }
-        
-        env {
-          name  = "ML_CONSUMER_METRICS_URL"
-          value = "https://ml-consumer-${data.google_project.project.number}.${var.region}.run.app"
-        }
-        
-        env {
-          name  = "STREAM_ANALYSIS_URL"
-          value = "https://stream-analysis-${data.google_project.project.number}.${var.region}.run.app"
-        }
-        
-        env {
-          name  = "EVENT_PRODUCER_URL"
-          value = "https://event-producer-${data.google_project.project.number}.${var.region}.run.app"
-        }
-        
-        env {
-          name  = "BACKSTAGE_URL"
-          value = "https://backstage-${data.google_project.project.number}.${var.region}.run.app"
-        }
-        
-        env {
-          name  = "MLFLOW_TRACKING_URI"
-          value = google_cloud_run_v2_service.mlflow.uri
-        }
-        
-        env {
-          name  = "MLFLOW_UI_URL"
-          value = google_cloud_run_v2_service.mlflow.uri
-        }
-        
-        # Model Inference uses ML Consumer
+
         env {
           name  = "MODEL_INFERENCE_URL"
-          value = "https://ml-consumer-${data.google_project.project.number}.${var.region}.run.app"
+          value = "http://model-inference-placeholder"
         }
-        
+
         env {
-          name  = "MODEL_INFERENCE_UI_URL"
-          value = "https://ml-consumer-${data.google_project.project.number}.${var.region}.run.app"
-        }
-        
-        # Kafka UI - Confluent Cloud
-        env {
-          name  = "KAFKA_UI_URL"
-          value = "https://confluent.cloud"
+          name  = "ML_CONSUMER_METRICS_URL"
+          value = "http://ml-consumer-placeholder:9090/metrics"
         }
 
         resources {
@@ -214,10 +146,9 @@ resource "google_cloud_run_service" "dashboard" {
   autogenerate_revision_name = true
 
   depends_on = [
-    google_project_service.required_apis
+    google_cloud_run_service.rag_service
   ]
 }
-
 
 # Allow public access to dashboard
 resource "google_cloud_run_service_iam_member" "dashboard_public" {

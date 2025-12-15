@@ -22,12 +22,12 @@ PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 MLFLOW_UI_URL = "http://localhost:5001" if ENVIRONMENT == "dev" else MLFLOW_TRACKING_URI
 
 # UI URLs for browser links (localhost for dev)
-MODEL_INFERENCE_UI_URL = "http://localhost:8001"
-RAG_SERVICE_UI_URL = "http://localhost:8005"
-AI_GATEWAY_UI_URL = "http://localhost:8002"
-PROMETHEUS_UI_URL = "http://localhost:9091"
-DISCOVERY_AGENT_UI_URL = "http://localhost:8004"
-KAFKA_UI_URL = "http://localhost:8080"
+MODEL_INFERENCE_UI_URL = os.getenv("MODEL_INFERENCE_UI_URL", "http://localhost:8001")
+RAG_SERVICE_UI_URL = os.getenv("RAG_SERVICE_UI_URL", "http://localhost:8005")
+AI_GATEWAY_UI_URL = os.getenv("AI_GATEWAY_UI_URL", "http://localhost:8002")
+PROMETHEUS_UI_URL = os.getenv("PROMETHEUS_UI_URL", "")
+DISCOVERY_AGENT_UI_URL = os.getenv("DISCOVERY_AGENT_UI_URL", "http://localhost:8004")
+KAFKA_UI_URL = os.getenv("KAFKA_UI_URL", "https://confluent.cloud")
 
 
 
@@ -603,7 +603,10 @@ if page == "🏠 Overview":
         st.markdown("### 🔗 Quick Links")
         col_a, col_b, col_c = st.columns(3)
         with col_a:
-            st.link_button("Open MLflow Dashboard", MLFLOW_UI_URL, use_container_width=True)
+            if MLFLOW_UI_URL:
+                st.link_button("🧪 Open MLflow", MLFLOW_UI_URL, use_container_width=True)
+            else:
+                st.button("MLflow (Not Deployed)", disabled=True, use_container_width=True)
         with col_b:
             st.link_button(
                 "🚪 Gateway", AI_GATEWAY_UI_URL + "/health", use_container_width=True
@@ -1254,7 +1257,10 @@ elif page == "🧠 ML Models":
     st.markdown("---")
     col_a, col_b, col_c = st.columns(3)
     with col_a:
-        st.link_button("Open MLflow Dashboard", MLFLOW_UI_URL, use_container_width=True)
+        if MLFLOW_UI_URL:
+            st.link_button("🧪 Open MLflow", MLFLOW_UI_URL, use_container_width=True)
+        else:
+            st.button("MLflow (Not Deployed)", disabled=True, use_container_width=True)
     with col_b:
         st.link_button(
             "📖 Model API Docs", f"{MODEL_INFERENCE_UI_URL}/docs", use_container_width=True
@@ -1268,17 +1274,20 @@ elif page == "🧪 MLflow":
     st.markdown("Model versioning and experiment management")
 
     # MLflow status
-    try:
-        mlflow_health = requests.get(f"{MLFLOW_TRACKING_URI}/health", timeout=5)
-        if mlflow_health.status_code == 200:
-            st.markdown(
-                '<div class="success-box">🟢 MLflow Connected</div>',
-                unsafe_allow_html=True,
-            )
-        else:
-            st.error("❌ MLflow Unavailable")
-    except Exception as e:
-        st.error(f"❌ Cannot reach MLflow: {str(e)}")
+    if not MLFLOW_TRACKING_URI:
+        st.warning("⚠️ MLflow is not deployed. The platform uses Cloud SQL for data storage but MLflow UI server is not running.")
+    else:
+        try:
+            mlflow_health = requests.get(f"{MLFLOW_TRACKING_URI}/health", timeout=5)
+            if mlflow_health.status_code == 200:
+                st.markdown(
+                    '<div class="success-box">🟢 MLflow Connected</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.error("❌ MLflow Unavailable")
+        except Exception as e:
+            st.error(f"❌ Cannot reach MLflow: {str(e)}")
 
     st.markdown("---")
 
@@ -1333,12 +1342,15 @@ elif page == "🧪 MLflow":
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.link_button(
-            "🚀 Open MLflow Dashboard",
-            MLFLOW_UI_URL,
-            use_container_width=True,
-            type="primary",
-        )
+        if MLFLOW_UI_URL:
+            st.link_button(
+                "🚀 Open MLflow Dashboard",
+                MLFLOW_UI_URL,
+                use_container_width=True,
+                type="primary",
+            )
+        else:
+            st.button("MLflow Not Deployed", disabled=True, use_container_width=True)
 
     st.markdown("---")
 
