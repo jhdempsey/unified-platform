@@ -6,7 +6,7 @@
 # Data Store for Agent Builder
 resource "google_discovery_engine_data_store" "supply_chain_docs" {
   location                    = "global"
-  data_store_id               = "supply-chain-docs"
+  data_store_id               = "supply-chain-docs-v2"
   display_name                = "Supply Chain Documentation"
   industry_vertical           = "GENERIC"
   content_config              = "NO_CONTENT"  # Using external tools only
