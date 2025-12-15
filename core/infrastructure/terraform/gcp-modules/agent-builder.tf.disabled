@@ -6,7 +6,7 @@
 # Data Store for Agent Builder
 resource "google_discovery_engine_data_store" "supply_chain_docs" {
   location                    = "global"
-  data_store_id               = "supply-chain-docs"
+  data_store_id               = "supply-chain-docs-v3"
   display_name                = "Supply Chain Documentation"
   industry_vertical           = "GENERIC"
   content_config              = "NO_CONTENT"  # Using external tools only
@@ -23,11 +23,11 @@ resource "google_discovery_engine_chat_engine" "supply_chain_assistant" {
   location       = google_discovery_engine_data_store.supply_chain_docs.location
   display_name   = "Supply Chain Assistant"
   industry_vertical = "GENERIC"
-
+  
   data_store_ids = [
     google_discovery_engine_data_store.supply_chain_docs.data_store_id
   ]
-
+  
   chat_engine_config {
     agent_creation_config {
       business             = "Supply Chain Operations"
@@ -35,11 +35,11 @@ resource "google_discovery_engine_chat_engine" "supply_chain_assistant" {
       time_zone            = "America/Los_Angeles"
     }
   }
-
+  
   common_config {
     company_name = "demoSupplyChainInc"
   }
-
+  
   project = var.project_id
 }
 
@@ -59,23 +59,3 @@ output "agent_builder_console_url" {
   description = "Console URL to configure agent tools"
 }
 
-output "agent_builder_tool_config_instructions" {
-  value = <<-EOT
-
-  ⚠️  Manual Tool Configuration Required:
-
-  1. Go to: ${google_discovery_engine_chat_engine.supply_chain_assistant.name}
-  2. Navigate to 'Tools' tab
-  3. Add OpenAPI tool:
-     - Name: Query Documentation
-     - OpenAPI Spec: ${google_cloud_run_service.mcp_server.status[0].url}/openapi.json
-     - Authentication: None
-
-  4. Add system instructions:
-     You are a Supply Chain Assistant. Use query_documentation tool
-     to search company policies when users ask about supplier requirements,
-     quality standards, or compliance procedures.
-
-  EOT
-  description = "Instructions for manual tool configuration"
-}
