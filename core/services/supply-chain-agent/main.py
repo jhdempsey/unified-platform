@@ -168,7 +168,7 @@ async def execute_tool(tool_name: str, tool_input: dict) -> str:
                 return f"Product not found: {tool_input['product_id']}"
 
             elif tool_name == "discover_kafka_topics":
-                response = await http_client.get(f"{DISCOVERY_AGENT_URL}/topics")
+                response = await http_client.get(f"{STREAM_ANALYSIS_URL}/stats")
                 if response.status_code == 200:
                     return json.dumps(response.json())
                 return f"Discovery agent error: {response.status_code}"
