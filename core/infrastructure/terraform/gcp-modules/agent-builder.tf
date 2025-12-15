@@ -6,7 +6,7 @@
 # Data Store for Agent Builder
 resource "google_discovery_engine_data_store" "supply_chain_docs" {
   location                    = "global"
-  data_store_id               = "supply-chain-docs-v2"
+  data_store_id               = "supply-chain-docs-v3"
   display_name                = "Supply Chain Documentation"
   industry_vertical           = "GENERIC"
   content_config              = "NO_CONTENT"  # Using external tools only
@@ -58,3 +58,4 @@ output "agent_builder_console_url" {
   value       = "https://console.cloud.google.com/gen-app-builder/engines/${google_discovery_engine_chat_engine.supply_chain_assistant.engine_id}/edit?project=${var.project_id}"
   description = "Console URL to configure agent tools"
 }
+
