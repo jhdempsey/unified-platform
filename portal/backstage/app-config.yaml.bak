@@ -1,60 +1,72 @@
 app:
   title: Unified Platform Portal
-  baseUrl: ${BACKSTAGE_BASE_URL}
+  baseUrl: http://localhost:3000
 
 organization:
   name: Unified Platform
 
 backend:
-  baseUrl: ${BACKSTAGE_BASE_URL}
+  baseUrl: http://localhost:7007
   listen:
-    port: 8080
+    port: 7007
   csp:
     connect-src:
       - "'self'"
       - "http:"
       - "https:"
   cors:
-    origin: ${BACKSTAGE_BASE_URL}
+    origin: http://localhost:3000
     methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
     credentials: true
   database:
-    client: pg
-    connection:
-      host: ${POSTGRES_HOST}
-      port: ${POSTGRES_PORT}
-      user: ${POSTGRES_USER}
-      password: ${POSTGRES_PASSWORD}
-      database: backstage
-      ssl:
-        rejectUnauthorized: false
+    client: better-sqlite3
+    connection: ':memory:'
   auth:
     dangerouslyDisableDefaultAuthPolicy: true
 
-# Proxy to Cloud Run services
+integrations:
+  github:
+    - host: github.com
+      token: ${GITHUB_TOKEN}
+
+# Proxy to Cloud Run services (production endpoints)
 proxy:
   endpoints:
-    '/product-service':
+    '/api/product-service':
       target: https://product-service-dakmfhg3aa-uc.a.run.app
       changeOrigin: true
-    '/product-generator':
+      pathRewrite:
+        '^/api/product-service': ''
+    '/api/product-generator':
       target: https://product-generator-dakmfhg3aa-uc.a.run.app
       changeOrigin: true
-    '/discovery-agent':
+      pathRewrite:
+        '^/api/product-generator': ''
+    '/api/discovery-agent':
       target: https://discovery-agent-dakmfhg3aa-uc.a.run.app
       changeOrigin: true
-    '/ai-gateway':
+      pathRewrite:
+        '^/api/discovery-agent': ''
+    '/api/ai-gateway':
       target: https://ai-gateway-dakmfhg3aa-uc.a.run.app
       changeOrigin: true
-    '/ml-consumer':
+      pathRewrite:
+        '^/api/ai-gateway': ''
+    '/api/ml-consumer':
       target: https://ml-consumer-dakmfhg3aa-uc.a.run.app
       changeOrigin: true
-    '/stream-analysis':
+      pathRewrite:
+        '^/api/ml-consumer': ''
+    '/api/stream-analysis':
       target: https://stream-analysis-dakmfhg3aa-uc.a.run.app
       changeOrigin: true
-    '/event-producer':
+      pathRewrite:
+        '^/api/stream-analysis': ''
+    '/api/event-producer':
       target: https://event-producer-dakmfhg3aa-uc.a.run.app
       changeOrigin: true
+      pathRewrite:
+        '^/api/event-producer': ''
 
 techdocs:
   builder: 'local'
@@ -74,14 +86,14 @@ catalog:
   rules:
     - allow: [Component, System, API, Resource, Location, Template, User, Group]
   locations:
-    # Platform services catalog
-    - type: url
-      target: https://raw.githubusercontent.com/YOUR_REPO/main/examples/platform-catalog.yaml
+    # Platform services catalog - all 10 Cloud Run services
+    - type: file
+      target: ../../examples/platform-catalog.yaml
       rules:
         - allow: [Component, System, API, Resource]
-    # Organization
-    - type: url
-      target: https://raw.githubusercontent.com/YOUR_REPO/main/examples/org.yaml
+    # Organization - teams and users
+    - type: file
+      target: ../../examples/org.yaml
       rules:
         - allow: [User, Group]
 

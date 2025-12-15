@@ -1,0 +1,424 @@
+# ============================================================================
+# Unified Platform - Service Catalog
+# All Cloud Run services registered in Backstage
+# ============================================================================
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: unified-platform
+  description: AI-powered unified data platform with event-driven architecture
+  tags:
+    - ai
+    - kafka
+    - gcp
+    - cloud-run
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+spec:
+  owner: platform-team
+  domain: data-platform
+
+---
+# ============================================================================
+# AI Services
+# ============================================================================
+
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: product-generator
+  description: AI-powered product creation agent using Claude
+  tags:
+    - ai
+    - anthropic
+    - fastapi
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://product-generator-dakmfhg3aa-uc.a.run.app
+      title: Production URL
+    - url: https://product-generator-dakmfhg3aa-uc.a.run.app/docs
+      title: API Docs
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  providesApis:
+    - product-generator-api
+  dependsOn:
+    - resource:confluent-kafka
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: discovery-agent
+  description: AI agent for Kafka topic discovery and data governance
+  tags:
+    - ai
+    - kafka
+    - discovery
+    - fastapi
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://discovery-agent-dakmfhg3aa-uc.a.run.app
+      title: Production URL
+    - url: https://discovery-agent-dakmfhg3aa-uc.a.run.app/docs
+      title: API Docs
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  providesApis:
+    - discovery-agent-api
+  dependsOn:
+    - resource:confluent-kafka
+    - component:product-service
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: stream-analysis
+  description: AI-powered real-time stream quality analysis
+  tags:
+    - ai
+    - kafka
+    - streaming
+    - quality
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://stream-analysis-dakmfhg3aa-uc.a.run.app
+      title: Production URL
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  dependsOn:
+    - resource:confluent-kafka
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ml-consumer
+  description: ML predictions consumer for supply chain orders
+  tags:
+    - ml
+    - kafka
+    - predictions
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://ml-consumer-dakmfhg3aa-uc.a.run.app
+      title: Production URL
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  dependsOn:
+    - resource:confluent-kafka
+
+---
+# ============================================================================
+# Data Services
+# ============================================================================
+
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: product-service
+  description: Product CRUD REST API with PostgreSQL and Kafka integration
+  tags:
+    - api
+    - postgresql
+    - kafka
+    - fastapi
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://product-service-dakmfhg3aa-uc.a.run.app
+      title: Production URL
+    - url: https://product-service-dakmfhg3aa-uc.a.run.app/docs
+      title: API Docs
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  providesApis:
+    - product-service-api
+  dependsOn:
+    - resource:cloud-sql
+    - resource:confluent-kafka
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: event-producer
+  description: Kafka event producer for testing and load generation
+  tags:
+    - kafka
+    - testing
+    - fastapi
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://event-producer-dakmfhg3aa-uc.a.run.app
+      title: Production URL
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  dependsOn:
+    - resource:confluent-kafka
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: rag-service
+  description: RAG (Retrieval Augmented Generation) service for document Q&A
+  tags:
+    - ai
+    - rag
+    - embeddings
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://rag-service-dakmfhg3aa-uc.a.run.app
+      title: Production URL
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+
+---
+# ============================================================================
+# Gateway Services
+# ============================================================================
+
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ai-gateway
+  description: API Gateway for AI services
+  tags:
+    - gateway
+    - api
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://ai-gateway-dakmfhg3aa-uc.a.run.app
+      title: Production URL
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  dependsOn:
+    - component:product-generator
+    - component:discovery-agent
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: mcp-server
+  description: MCP (Model Context Protocol) server for AI tool integration
+  tags:
+    - mcp
+    - ai
+    - tools
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://mcp-server-dakmfhg3aa-uc.a.run.app
+      title: Production URL
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dashboard
+  description: Platform dashboard UI
+  tags:
+    - frontend
+    - dashboard
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://dashboard-dakmfhg3aa-uc.a.run.app
+      title: Production URL
+spec:
+  type: website
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+
+---
+# ============================================================================
+# Resources (Infrastructure)
+# ============================================================================
+
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: confluent-kafka
+  description: Confluent Cloud Kafka cluster on Azure
+  tags:
+    - kafka
+    - confluent
+    - azure
+  links:
+    - url: https://confluent.cloud
+      title: Confluent Console
+spec:
+  type: message-queue
+  owner: platform-team
+  system: unified-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: cloud-sql
+  description: Cloud SQL PostgreSQL database
+  tags:
+    - postgresql
+    - gcp
+    - database
+spec:
+  type: database
+  owner: platform-team
+  system: unified-platform
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: redis
+  description: Memorystore Redis for caching
+  tags:
+    - redis
+    - cache
+    - gcp
+spec:
+  type: cache
+  owner: platform-team
+  system: unified-platform
+
+---
+# ============================================================================
+# APIs
+# ============================================================================
+
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: product-service-api
+  description: Product CRUD REST API
+  tags:
+    - rest
+    - openapi
+spec:
+  type: openapi
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  definition: |
+    openapi: 3.0.0
+    info:
+      title: Product Service API
+      version: 1.0.0
+    servers:
+      - url: https://product-service-dakmfhg3aa-uc.a.run.app
+    paths:
+      /health:
+        get:
+          summary: Health check
+          responses:
+            '200':
+              description: Service health status
+      /products:
+        get:
+          summary: List products
+        post:
+          summary: Create product
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: product-generator-api
+  description: AI Product Generator API
+  tags:
+    - rest
+    - ai
+spec:
+  type: openapi
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  definition: |
+    openapi: 3.0.0
+    info:
+      title: Product Generator API
+      version: 1.0.0
+    servers:
+      - url: https://product-generator-dakmfhg3aa-uc.a.run.app
+    paths:
+      /health:
+        get:
+          summary: Health check
+      /generate:
+        post:
+          summary: Generate product using AI
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: discovery-agent-api
+  description: Kafka Topic Discovery API
+  tags:
+    - rest
+    - kafka
+spec:
+  type: openapi
+  lifecycle: production
+  owner: platform-team
+  system: unified-platform
+  definition: |
+    openapi: 3.0.0
+    info:
+      title: Discovery Agent API
+      version: 1.0.0
+    servers:
+      - url: https://discovery-agent-dakmfhg3aa-uc.a.run.app
+    paths:
+      /health:
+        get:
+          summary: Health check
+      /discover:
+        get:
+          summary: Discover Kafka topics
+      /topics:
+        get:
+          summary: List discovered topics

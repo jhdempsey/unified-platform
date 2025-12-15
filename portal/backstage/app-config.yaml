@@ -29,20 +29,44 @@ integrations:
     - host: github.com
       token: ${GITHUB_TOKEN}
 
+# Proxy to Cloud Run services (production endpoints)
 proxy:
   endpoints:
-    '/product-service':
-      target: http://localhost:8001
+    '/api/product-service':
+      target: https://product-service-dakmfhg3aa-uc.a.run.app
       changeOrigin: true
-    '/product-generator':
-      target: http://localhost:8003
+      pathRewrite:
+        '^/api/product-service': ''
+    '/api/product-generator':
+      target: https://product-generator-dakmfhg3aa-uc.a.run.app
       changeOrigin: true
-    '/discovery-agent':
-      target: http://localhost:8004
+      pathRewrite:
+        '^/api/product-generator': ''
+    '/api/discovery-agent':
+      target: https://discovery-agent-dakmfhg3aa-uc.a.run.app
       changeOrigin: true
-    '/ai-gateway':
-      target: http://localhost:8002
+      pathRewrite:
+        '^/api/discovery-agent': ''
+    '/api/ai-gateway':
+      target: https://ai-gateway-dakmfhg3aa-uc.a.run.app
       changeOrigin: true
+      pathRewrite:
+        '^/api/ai-gateway': ''
+    '/api/ml-consumer':
+      target: https://ml-consumer-dakmfhg3aa-uc.a.run.app
+      changeOrigin: true
+      pathRewrite:
+        '^/api/ml-consumer': ''
+    '/api/stream-analysis':
+      target: https://stream-analysis-dakmfhg3aa-uc.a.run.app
+      changeOrigin: true
+      pathRewrite:
+        '^/api/stream-analysis': ''
+    '/api/event-producer':
+      target: https://event-producer-dakmfhg3aa-uc.a.run.app
+      changeOrigin: true
+      pathRewrite:
+        '^/api/event-producer': ''
 
 techdocs:
   builder: 'local'
@@ -62,20 +86,14 @@ catalog:
   rules:
     - allow: [Component, System, API, Resource, Location, Template, User, Group]
   locations:
+    # Platform services catalog - all 10 Cloud Run services
     - type: file
-      target: ../../examples/platform-services.yaml
+      target: ./examples/platform-catalog.yaml
       rules:
         - allow: [Component, System, API, Resource]
+    # Organization - teams and users
     - type: file
-      target: ../../examples/entities.yaml
-      rules:
-        - allow: [Component, System, API, Resource]
-    - type: file
-      target: ../../examples/template/template.yaml
-      rules:
-        - allow: [Template]
-    - type: file
-      target: ../../examples/org.yaml
+      target: ./examples/org.yaml
       rules:
         - allow: [User, Group]
 
