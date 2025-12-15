@@ -189,7 +189,9 @@ async def execute_tool(tool_name: str, tool_input: dict) -> str:
                 response = await http_client.post(
                     f"{PRODUCT_GENERATOR_URL}/generate",
                     json={
+                        "product_name": tool_input["description"],
                         "description": tool_input["description"],
+                        "owner": "supply-chain-agent",
                         "category": tool_input.get("category", "General")
                     }
                 )
