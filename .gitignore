@@ -44,3 +44,10 @@ backups/
 # Temporary
 tmp/
 temp/
+
+# Terraform sensitive files
+*.tfvars
+~/Work/AI_Development/unified-platform.tfvars.example
+.terraform/
+*.tfstate
+*.tfstate.backup
