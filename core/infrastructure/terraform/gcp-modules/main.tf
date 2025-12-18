@@ -202,7 +202,7 @@ resource "google_cloud_run_v2_service" "ai_gateway" {
     }
 
     scaling {
-      min_instance_count = 0  # Scale to zero for cost savings
+      min_instance_count = 1  # Keep warm for RAG service
       max_instance_count = var.max_cloud_run_instances
     }
   }
