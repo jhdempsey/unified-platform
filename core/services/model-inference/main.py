@@ -12,26 +12,12 @@ import mlflow
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-# Add paths for vertical models
-VERTICAL = os.getenv("VERTICAL", "supply-chain")
-vertical_models_path = Path(f"/app/vertical-models")
-if vertical_models_path.exists():
-    sys.path.insert(0, str(vertical_models_path))
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-# Import models from vertical
-try:
-    from demand_forecasting.model import DemandForecastingModel
-    from demand_forecasting.rf_model import SupplyChainRFModel
-    from inventory_optimization.model import InventoryOptimizationModel
-    from supplier_reliability.model import SupplierReliabilityModel
-    MODELS_AVAILABLE = True
-except ImportError as e:
-    print(f"⚠️  Could not import models: {e}")
-    MODELS_AVAILABLE = False
-    DemandForecastingModel = None
-    SupplyChainRFModel = None
-    InventoryOptimizationModel = None
-    SupplierReliabilityModel = None
+from ml.models.demand_forecasting.model import DemandForecastingModel
+from ml.models.demand_forecasting.rf_model import SupplyChainRFModel
+
 app = FastAPI(
     title="Model Inference Service",
     version="2.0.0",
@@ -73,7 +59,7 @@ def load_models():
         else:
             # Train on startup if no saved model
             print("📊 No saved model found, training new model...")
-            rf_model.train(n_estimators=100, max_depth=10, log_to_mlflow=True)
+            rf_model.train(n_estimators=10, max_depth=5, log_to_mlflow=False)
             rf_model.save_local(local_path)
             print("✅ Trained and saved: supply_chain_rf")
 
@@ -92,37 +78,6 @@ def load_models():
         import traceback
 
         traceback.print_exc()
-
-    
-    # Load Inventory Optimization model
-    try:
-        if InventoryOptimizationModel:
-            models["inventory_optimization"] = InventoryOptimizationModel()
-            model_metadata["inventory_optimization"] = {
-                "type": "optimization",
-                "version": "1.0.0",
-                "framework": "numpy",
-                "description": "Inventory optimization model",
-                "status": "active",
-            }
-            print("✅ Loaded: inventory_optimization")
-    except Exception as e:
-        print(f"⚠️  Failed to load inventory model: {e}")
-
-    # Load Supplier Reliability model
-    try:
-        if SupplierReliabilityModel:
-            models["supplier_reliability"] = SupplierReliabilityModel()
-            model_metadata["supplier_reliability"] = {
-                "type": "scoring",
-                "version": "1.0.0",
-                "framework": "numpy",
-                "description": "Supplier reliability scoring model",
-                "status": "active",
-            }
-            print("✅ Loaded: supplier_reliability")
-    except Exception as e:
-        print(f"⚠️  Failed to load supplier model: {e}")
 
     print(f"✅ Loaded {len(models)} models")
 

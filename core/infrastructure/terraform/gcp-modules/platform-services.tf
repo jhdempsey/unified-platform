@@ -99,10 +99,25 @@ resource "google_cloud_run_v2_service" "product_generator" {
         name  = "ENVIRONMENT"
         value = "production"
       }
+      # Redis/Memorystore configuration
+      env {
+        name  = "REDIS_HOST"
+        value = google_redis_instance.cache.host
+      }
+      
+      env {
+        name  = "REDIS_PORT"
+        value = "6379"
+      }
+      
+      env {
+        name  = "REDIS_URL"
+        value = "redis://${google_redis_instance.cache.host}:6379"
+      }
     }
     
     scaling {
-      min_instance_count = 0
+      min_instance_count = 1
       max_instance_count = 10
     }
     
@@ -187,7 +202,7 @@ resource "google_cloud_run_v2_service" "discovery_agent" {
     }
     
     scaling {
-      min_instance_count = 0
+      min_instance_count = 1
       max_instance_count = 10
     }
     
@@ -279,7 +294,7 @@ resource "google_cloud_run_v2_service" "product_service" {
     }
     
     scaling {
-      min_instance_count = 0
+      min_instance_count = 1
       max_instance_count = 10
     }
     
@@ -347,7 +362,7 @@ resource "google_cloud_run_v2_service" "event_producer" {
     }
     
     scaling {
-      min_instance_count = 0
+      min_instance_count = 1
       max_instance_count = 3
     }
     
@@ -497,6 +512,22 @@ resource "google_cloud_run_v2_service" "ml_consumer" {
         name  = "ENVIRONMENT"
         value = "production"
       }
+
+      # Redis/Memorystore configuration
+      env {
+        name  = "REDIS_HOST"
+        value = google_redis_instance.cache.host
+      }
+
+      env {
+        name  = "REDIS_PORT"
+        value = "6379"
+      }
+
+      env {
+        name  = "REDIS_URL"
+        value = "redis://${google_redis_instance.cache.host}:6379"
+      }
     }
     
     scaling {
@@ -558,4 +589,65 @@ output "stream_analysis_url" {
 output "ml_consumer_url" {
   description = "ML Consumer URL"
   value       = google_cloud_run_v2_service.ml_consumer.uri
+}
+
+# =============================================================================
+# SERVICE: model-inference
+# ML model serving with scikit-learn Random Forest (FastAPI on port 8001)
+# =============================================================================
+
+resource "google_cloud_run_v2_service" "model_inference" {
+  name     = "model-inference"
+  location = var.region
+  
+  deletion_protection = false
+  
+  template {
+    containers {
+      image = "${local.image_registry}/model-inference:latest"
+      
+      ports {
+        container_port = 8001
+      }
+      
+      resources {
+        limits = {
+          cpu    = "2"
+          memory = "2Gi"
+        }
+      }
+      
+      env {
+        name  = "ENVIRONMENT"
+        value = "production"
+      }
+      
+      env {
+        name  = "MLFLOW_TRACKING_URI"
+        value = google_cloud_run_v2_service.mlflow.uri
+      }
+    }
+    
+    scaling {
+      min_instance_count = 1
+      max_instance_count = 5
+    }
+  }
+  
+  traffic {
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    percent = 100
+  }
+}
+
+resource "google_cloud_run_v2_service_iam_member" "model_inference_public" {
+  name     = google_cloud_run_v2_service.model_inference.name
+  location = var.region
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+output "model_inference_url" {
+  description = "Model Inference URL"
+  value       = google_cloud_run_v2_service.model_inference.uri
 }

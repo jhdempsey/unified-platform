@@ -14,9 +14,37 @@ from typing import Any, Dict, Optional
 
 import uvicorn
 from confluent_kafka import Consumer, KafkaError, Producer
+try:
+    import redis
+except ImportError:
+    redis = None
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import Response
+
+# Redis configuration
+REDIS_HOST = os.getenv("REDIS_HOST", "")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+redis_client = None
+
+def get_redis_client():
+    """Get or create Redis client"""
+    global redis_client
+    if redis_client is None and REDIS_HOST:
+        try:
+            redis_client = redis.Redis(
+                host=REDIS_HOST,
+                port=REDIS_PORT,
+                decode_responses=True,
+                socket_connect_timeout=5
+            )
+            redis_client.ping()
+            logger.info(f"✅ Connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
+        except Exception as e:
+            logger.warning(f"⚠️ Redis connection failed: {e}")
+            redis_client = None
+    return redis_client
 
 # Configure logging
 logging.basicConfig(
@@ -368,6 +396,57 @@ class MLConsumer:
             self.running = False
             self.consumer.close()
             self.producer.flush()
+
+
+
+@app.get("/cache/stats")
+async def cache_stats():
+    """Get Redis cache statistics"""
+    r = get_redis_client()
+    if not r:
+        return {
+            "status": "not_configured",
+            "message": "Redis not configured or not connected"
+        }
+    try:
+        info = r.info()
+        return {
+            "status": "connected",
+            "used_memory": info.get("used_memory_human"),
+            "connected_clients": info.get("connected_clients"),
+            "total_commands_processed": info.get("total_commands_processed"),
+            "keyspace_hits": info.get("keyspace_hits"),
+            "keyspace_misses": info.get("keyspace_misses"),
+            "keys": r.dbsize()
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/cache/prediction")
+async def cache_prediction(key: str, value: dict):
+    """Cache a prediction result"""
+    r = get_redis_client()
+    if not r:
+        raise HTTPException(status_code=503, detail="Redis not available")
+    try:
+        r.setex(f"prediction:{key}", 3600, json.dumps(value))  # 1 hour TTL
+        return {"status": "cached", "key": key}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/cache/prediction/{key}")
+async def get_cached_prediction(key: str):
+    """Get a cached prediction"""
+    r = get_redis_client()
+    if not r:
+        raise HTTPException(status_code=503, detail="Redis not available")
+    try:
+        value = r.get(f"prediction:{key}")
+        if value:
+            return {"status": "hit", "key": key, "value": json.loads(value)}
+        return {"status": "miss", "key": key}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

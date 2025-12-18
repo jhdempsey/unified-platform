@@ -135,12 +135,12 @@ resource "google_cloud_run_service" "dashboard" {
         
         env {
           name  = "ML_CONSUMER_URL"
-          value = "https://ml-consumer-${data.google_project.project.number}.${var.region}.run.app"
+          value = google_cloud_run_v2_service.model_inference.uri
         }
         
         env {
           name  = "ML_CONSUMER_METRICS_URL"
-          value = "https://ml-consumer-${data.google_project.project.number}.${var.region}.run.app"
+          value = google_cloud_run_v2_service.model_inference.uri
         }
         
         env {
@@ -171,12 +171,12 @@ resource "google_cloud_run_service" "dashboard" {
         # Model Inference uses ML Consumer
         env {
           name  = "MODEL_INFERENCE_URL"
-          value = "https://ml-consumer-${data.google_project.project.number}.${var.region}.run.app"
+          value = google_cloud_run_v2_service.model_inference.uri
         }
         
         env {
           name  = "MODEL_INFERENCE_UI_URL"
-          value = "https://ml-consumer-${data.google_project.project.number}.${var.region}.run.app"
+          value = google_cloud_run_v2_service.model_inference.uri
         }
         
         # Kafka UI - Confluent Cloud

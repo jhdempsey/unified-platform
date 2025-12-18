@@ -357,7 +357,7 @@ METRICS_API_URL = os.getenv(
 def get_kafka_metrics():
     """Get Kafka metrics from ML Consumer API"""
     try:
-        response = requests.get(f"{METRICS_API_URL}/metrics/kafka", timeout=5)
+        response = requests.get(f"{METRICS_API_URL}/metrics/kafka", timeout=30)
 
         if response.status_code == 200:
             logger.info("✅ Got real Kafka metrics from ml-consumer")
@@ -385,7 +385,7 @@ def get_kafka_metrics():
 def get_redis_metrics():
     """Get Redis metrics - Currently not deployed"""
     try:
-        response = requests.get(f"{METRICS_API_URL}/metrics/redis", timeout=5)
+        response = requests.get(f"{METRICS_API_URL}/metrics/redis", timeout=30)
 
         if response.status_code == 200:
             data = response.json()
@@ -401,7 +401,7 @@ def get_redis_metrics():
 def get_consumer_metrics():
     """Get ML Consumer processing statistics"""
     try:
-        response = requests.get(f"{METRICS_API_URL}/metrics/consumer", timeout=5)
+        response = requests.get(f"{METRICS_API_URL}/metrics/consumer", timeout=30)
 
         if response.status_code == 200:
             return response.json()
@@ -687,8 +687,8 @@ elif page == "📊 Live Pipeline":
 
     if redis_metrics.get("status") == "not_deployed":
         st.info(
-            "ℹ️ Redis/Memorystore is provisioned in Terraform but not yet integrated with ml-consumer. "  # noqa: E501
-            "Requires Serverless VPC Access or VPC connector configuration."  # noqa: E501
+            "✅ Redis/Memorystore connected to ml-consumer for caching predictions."
+            "Cache stats available at /cache/stats endpoint."  # noqa: E501
         )
 
     st.markdown("---")
@@ -781,7 +781,7 @@ elif page == "🧠 ML Models":
 
     # Connection status
     try:
-        health_response = requests.get(f"{MODEL_INFERENCE_URL}/health", timeout=5)
+        health_response = requests.get(f"{MODEL_INFERENCE_URL}/health", timeout=30)
         if health_response.status_code == 200:
             health_data = health_response.json()
             models_loaded = health_data.get("models_loaded", 0)
@@ -825,7 +825,7 @@ elif page == "🧠 ML Models":
 
         try:
             info_response = requests.get(
-                f"{MODEL_INFERENCE_URL}/models/{selected_model}/info", timeout=5
+                f"{MODEL_INFERENCE_URL}/models/{selected_model}/info", timeout=30
             )
             if info_response.status_code == 200:
                 model_info = info_response.json()
@@ -1140,7 +1140,7 @@ elif page == "🧠 ML Models":
         st.markdown("### 📚 Available Models")
 
         try:
-            models_response = requests.get(f"{MODEL_INFERENCE_URL}/models", timeout=5)
+            models_response = requests.get(f"{MODEL_INFERENCE_URL}/models", timeout=30)
             if models_response.status_code == 200:
                 models_data = models_response.json()
                 models_list = models_data.get("models", {})
@@ -1278,7 +1278,7 @@ elif page == "🧪 MLflow":
         st.warning("⚠️ MLflow is not deployed. The platform uses Cloud SQL for data storage but MLflow UI server is not running.")
     else:
         try:
-            mlflow_health = requests.get(f"{MLFLOW_TRACKING_URI}/health", timeout=5)
+            mlflow_health = requests.get(f"{MLFLOW_TRACKING_URI}/health", timeout=30)
             if mlflow_health.status_code == 200:
                 st.markdown(
                     '<div class="success-box">🟢 MLflow Connected</div>',

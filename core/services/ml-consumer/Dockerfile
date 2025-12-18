@@ -8,7 +8,8 @@ RUN pip install --no-cache-dir \
     uvicorn[standard]==0.24.0 \
     confluent-kafka==2.3.0 \
     python-dotenv==1.0.0 \
-    pydantic==2.5.0
+    pydantic==2.5.0 \
+    redis==5.0.1
 
 # Copy main application
 COPY main.py ./
