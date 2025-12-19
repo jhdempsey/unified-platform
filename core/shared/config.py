@@ -43,6 +43,10 @@ class PlatformConfig:
         "SCHEMA_REGISTRY_URL",
         "http://localhost:18081"
     )
+
+   # Schema Registry Authentication (for Confluent Cloud)
+    SCHEMA_REGISTRY_API_KEY: Optional[str] = os.getenv("SCHEMA_REGISTRY_API_KEY")
+    SCHEMA_REGISTRY_API_SECRET: Optional[str] = os.getenv("SCHEMA_REGISTRY_API_SECRET")
     
     # ============================================================================
     # Infrastructure - Database

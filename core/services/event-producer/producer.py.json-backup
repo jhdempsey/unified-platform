@@ -93,7 +93,7 @@ class OrderEventProducer:
         )
 
         self.producer = Producer(self.config)
-        self.topic = "order-events"  # Topic name matches schema subject
+        self.topic = "order-event"  # Topic name matches schema subject
         self.bootstrap_servers = bootstrap_servers
 
         print(f"🔗 Connected to Kafka: {bootstrap_servers}")
