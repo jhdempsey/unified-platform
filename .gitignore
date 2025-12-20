@@ -51,3 +51,4 @@ temp/
 .terraform/
 *.tfstate
 *.tfstate.backup
+.secrets-backup.env
